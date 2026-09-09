@@ -25,28 +25,59 @@ End Sub
 
 Private Sub UserForm_Initialize()
     Dim defaults As JPEGPreset
+    Dim operation As String
+    Dim errorNumber As Long
+    Dim errorSource As String
+    Dim errorDescription As String
 
+    On Error GoTo InitializeFailed
+    operation = "Menyiapkan form dan Collection preset"
     Me.Caption = "JPEG Settings"
     pApplyingPreset = True
     Set pPresets = New Collection
 
+    operation = "Menyiapkan cmbPreset"
     cmbPreset.Clear
     cmbPreset.Style = fmStyleDropDownList
     cmbPreset.Enabled = False
 
+    operation = "PopulateBitmapColorModes / cmbColorMode"
     PopulateBitmapColorModes cmbColorMode, False, False, True, BITMAP_DEFAULT_COLOR_MODE
+    operation = "PopulateSubFormats / cmbSubFormat"
     PopulateSubFormats
+    operation = "PopulatePercentages / cmbQuality"
     PopulatePercentages cmbQuality, 80
+    operation = "PopulatePercentages / cmbBlur"
     PopulatePercentages cmbBlur, 0
+    operation = "PopulateBitmapResolutions / cmbResolution"
     PopulateBitmapResolutions cmbResolution, BITMAP_DEFAULT_RESOLUTION
 
+    operation = "ConfigureBitmapMatteControl / cmbBgColor"
     ConfigureBitmapMatteControl cmbBgColor
 
+    operation = "Membuat default JPEGPreset"
     Set defaults = New JPEGPreset
+    operation = "ApplyPreset / default JPEG"
     ApplyPreset defaults
     pApplyingPreset = False
+    operation = "LoadPresetList"
     LoadPresetList
+    operation = "LoadSavedSettings"
     LoadSavedSettings
+    Exit Sub
+
+InitializeFailed:
+    errorNumber = Err.Number
+    errorSource = Err.Source
+    errorDescription = Err.Description
+    pApplyingPreset = False
+    ' Tampilkan error asli sebelum COM meneruskannya melalui UserForms.Add.
+    MsgBox "Operasi: " & operation & vbCrLf & _
+        "Error: " & CStr(errorNumber) & vbCrLf & _
+        "Source: " & errorSource & vbCrLf & _
+        "Description: " & errorDescription, vbExclamation, "JPEGSettings - Initialize"
+    Err.Raise errorNumber, "JPEGSettings.UserForm_Initialize", _
+        operation & vbCrLf & "Source asli: " & errorSource & vbCrLf & errorDescription
 End Sub
 
 Private Sub LoadSavedSettings()

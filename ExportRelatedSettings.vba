@@ -112,35 +112,44 @@ End Sub
 Private Sub ShowFormatSettings(ByVal formName As String)
 
     Dim presetForm As Object
+    Dim operation As String
     Dim errorNumber As Long
+    Dim errorSource As String
     Dim errorDescription As String
 
-    On Error Resume Next
+    On Error GoTo SettingsFailed
+    operation = "UserForms.Add(" & formName & ") / UserForm_Initialize"
     Set presetForm = UserForms.Add(formName)
-    On Error GoTo 0
 
     If presetForm Is Nothing Then
-        MsgBox "UserForm " & formName & " belum tersedia atau gagal dimuat. Periksa nama dan kode UserForm.", vbExclamation, "Export Related"
-        Exit Sub
+        Err.Raise 91, "ExportRelatedSettings.ShowFormatSettings", "UserForms.Add tidak mengembalikan instance " & formName & "."
     End If
 
-    On Error GoTo SettingsFailed
     If Not pQueueDraft Is Nothing Then
+        operation = "Menyiapkan snapshot pengaturan " & formName
         pQueueDraft.Settings.FormatText = NormalizeExportFormatText(cmbExFormat.Value)
         pQueueDraft.EnsureFormatSettings
+        operation = formName & ".BeginQueueEdit"
         presetForm.BeginQueueEdit pQueueDraft
     End If
+    operation = formName & ".Show vbModal"
     presetForm.Show vbModal
+    operation = "Unload " & formName
     Unload presetForm
     Exit Sub
 
 SettingsFailed:
     errorNumber = Err.Number
+    errorSource = Err.Source
     errorDescription = Err.Description
     On Error Resume Next
-    Unload presetForm
+    If Not presetForm Is Nothing Then Unload presetForm
     On Error GoTo 0
-    MsgBox "Gagal membuka pengaturan format (" & CStr(errorNumber) & "): " & errorDescription, vbExclamation, "Export Related"
+    MsgBox "Gagal membuka pengaturan " & formName & vbCrLf & _
+        "Operasi: " & operation & vbCrLf & _
+        "Error: " & CStr(errorNumber) & vbCrLf & _
+        "Source: " & errorSource & vbCrLf & _
+        "Description: " & errorDescription, vbExclamation, "Export Related"
 
 End Sub
 
