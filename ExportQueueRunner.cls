@@ -109,6 +109,7 @@ End Sub
 Private Sub ValidateSnapshot(ByVal item As ExportSettingItem)
     Dim png As PNGPreset
     Dim jpeg As JPEGPreset
+    Dim dxf As DXFExportSettings
     Dim pdf As PDFExport
     Select Case item.Settings.FormatText
         Case ".png": Set png = item.ReadPNGSnapshot()
@@ -119,6 +120,7 @@ Private Sub ValidateSnapshot(ByVal item As ExportSettingItem)
                 Err.Raise pdf.LastErrorNumber, "ExportQueueRunner", pdf.LastErrorDescription
             End If
         Case ".dxf"
+            Set dxf = item.ReadDXFSnapshot()
         Case Else: Err.Raise 5, "ExportQueueRunner", "Format item tidak didukung."
     End Select
 End Sub

@@ -1,0 +1,66 @@
+2026-08-30
++ Menambahkan fitur export file terkait dokumen aktif dengan format `.pdf`, `.dxf`, dan `.png`.
++ Mendukung template nama file dengan parsing `/*` dan `(/*...):` serta validasi jumlah value terhadap page yang diekspor.
++ Menambahkan fallback otomatis ke page aktif jika `txtPage` kosong pada saat export.
++ Menambahkan penyimpanan direktori terakhir menggunakan registry `RinCorelMacros` / `ExportRelatedMacro` / `LastDirectory`.
+~ Memperbaiki pemilihan folder agar kompatibel dengan CorelDRAW tanpa bergantung pada Office FileDialog.
+~ Menyederhanakan struktur helper dan membersihkan event kosong yang tidak digunakan agar kode lebih mudah dikelola.
+~ Memperbaiki pengalaman export agar error yang tidak relevan tidak memunculkan popup palsu ketika file berhasil dibuat.
+
+2026-09-03
++ Menambahkan dukungan grouping `txtPage`: tanpa kurung menjadi satu file PDF, sedangkan kurung membuat beberapa file sesuai grup.
++ Menyempurnakan token `txtName` untuk replacement `/*`, command `(/*...):`, brace `{}`, dan sequence angka yang selaras dengan jumlah output.
++ Menambahkan suffix otomatis untuk nama file duplikat, misalnya `Nama (1)` dan `Nama (2)`.
+~ Mengubah export PDF agar memakai `PublishToPDF` dan bukan `ExportEx`.
+~ Menunda penyempurnaan export `.png` dan `.dxf` untuk sesi berikutnya.
+
+2026-09-04
++ Menambahkan UF pengaturan PDF preset yang bisa dibuka dari `cmdFormatSettings` saat format `.pdf` dipilih.
++ Menambahkan penyimpanan pilihan PDF preset dan compatibility khusus macro ke registry.
++ Menampilkan custom PDF preset dari konfigurasi CorelDRAW, termasuk preset user seperti `Cutting Preset`.
+~ Memperbaiki tampilan `cmbPDFPresets` agar memakai nama preset seperti UI Corel, bukan `CorelDefaultID_*`.
+~ Menjaga `cmdAddPreset` dan `cmdRemovePreset` tetap nonaktif sampai UI pengaturan preset lanjutan disiapkan.
++ Menambahkan token sync `;` untuk menyelaraskan value `txtName` dengan kelompok output dari `txtPage`, misalnya `{3-7,9};{1,2,8}` dengan `(/*TOTAL 12): {}1; 2`.
+
+2026-09-05
++ Mengganti UF pengaturan PDF menjadi `PDFSettings`.
++ Menambahkan alur pengaturan PNG melalui `PNGSettings`, termasuk preset XML Corel, mode warna, transparency, matte, antialias, embed color profile, interlace, crop, dan resolusi custom hingga 1200 dpi.
++ Menambahkan pembacaan preset PNG dari folder Export Presets user secara dinamis.
++ Menambahkan penyimpanan snapshot setting PNG ke registry dan menghubungkannya ke export `.png`.
++ Menambahkan penyimpanan pilihan terakhir `cmbExFormat` ke registry agar format export terakhir otomatis dipulihkan saat UF dibuka.
+
+2026-09-07
+[JPEG dan helper bitmap bersama]
++ Menambahkan dukungan export `.jpg` pada `cmbExFormat` dan menghubungkannya ke `JPEGSettings`.
++ Menambahkan pengaturan JPEG untuk preset, color mode, matte/background color, antialias, resolusi, embed color profile, crop to page, subformat, quality, blur, color workflow, optimize, dan progressive.
++ Menambahkan penyimpanan snapshot setting JPEG ke registry dan menerapkannya saat export tanpa membuka dialog export tambahan.
++ Menambahkan pembacaan preset JPEG XML secara dinamis dari folder Export Presets user.
+~ Menyamakan pemilih background color JPEG dengan swatch dropdown pada PNG agar warna terpilih dapat dilihat langsung.
+
+[Export Queue MVP]
++ Menambahkan Export Menu sebagai UF utama `ExportRelatedMenu`, dengan Add, Modify, Remove, dan summary `FORMAT | PRESET | JUMLAH FILE` pada ListBox `txtSettingLists`.
++ Menyimpan data lengkap setiap item dalam `ExportSettingItem` dan Collection, termasuk directory, format, page, nama, snapshot setting format, dan pilihan Layer 1/2/3.
++ Menghubungkan highlight item ke checkbox layer masing-masing; item baru memakai Layer 1, dan penghapusan memilih item terdekat atau mengembalikan default ketika queue kosong.
++ Menambahkan mode editor queue pada `ExportRelatedSettings`; Save mengembalikan item, sementara Cancel/tombol X membatalkan perubahan tanpa menimpa item asal.
+~ Mempertahankan alur single export saat `ExportRelatedSettings` dibuka tanpa mode queue.
+~ Tombol Export queue masih berupa skeleton dan belum mengekspor file. Integrasi runner per item dilanjutkan pada sesi berikutnya.
+
+2026-09-08
+[Export Queue selesai]
++ Mengaktifkan export queue dengan directory, format, page, nama, preset/setting format, dan pilihan layer masing-masing item.
++ Menambahkan validasi seluruh queue sebelum export serta pemulihan state layer, page, selection, dan dokumen aktif setelah proses.
+~ Layer lokal `Layer 1`, `Layer 2`, dan `Layer 3` mengikuti checkbox per item; layer terpilih yang disabled print/export diaktifkan sementara lalu dikembalikan ke flag semula.
+~ Layer lokal `scpro2_printmargin`, `scpro2_printonly`, `scpro2_regmarks`, dan `Regmark` mengikuti flag print/export pengguna tanpa bergantung checkbox.
+~ Semua master layer, apa pun namanya, tetap mengikuti flag print/export pengguna: aktif ikut export, disabled tidak ikut.
+~ Mengaktifkan kembali penyimpanan folder valid terakhir ke `LastDirectory` setelah Browse, edit manual, atau Save item queue; directory tiap item tetap terpisah.
+~ Memperjelas diagnostik Add/Modify dan inisialisasi form serta menyinkronkan helper penamaan pada `ExportTemplateParser`.
+
+[Token nama alfanumerik, prefix/suffix, dan pipeline]
++ Memperluas nilai terstruktur txbName pada command existing agar menerima huruf, angka, dan alfanumerik seperti A, 1, dan A1.
++ Menambahkan template nama langsung tanpa /*: `{NAMA}_A, B` menghasilkan `NAMA_A` dan `NAMA_B`; underscore tunggal tetap teks biasa dan koma menjadi delimiter.
++ Menambahkan token `String__` untuk prefix dan `__String` untuk suffix, dengan daftar per-output `,` serta sinkronisasi grup `;`.
++ Menambahkan pemisah `|` agar replacement, template langsung, prefix, dan suffix bisa diproses berurutan dari kiri ke kanan.
+
+2026-09-09 (DXFSettings - checkpoint R2007)
++ Menambahkan DXFSettings, DXFExportSettings, dan DXFSettingsStore untuk versi AutoCAD, unit, bitmap, text, unmapped fills, warna, serta penyimpanan pilihan kurva/tolerance.
++ Menghubungkan DXFSettings ke cmdFormatSettings dan snapshot DXFSettingsXML per item queue; Save/Close mengikuti pola settings existing.

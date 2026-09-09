@@ -98,7 +98,7 @@ Private Sub cmdFormatSettings_Click()
         Case cdrPDF
             ShowFormatSettings "PDFSettings"
         Case cdrDXF
-            MsgBox "Pengaturan DXF belum tersedia.", vbInformation, "Export Related"
+            ShowFormatSettings "DXFSettings"
         Case cdrPNG
             ShowFormatSettings "PNGSettings"
         Case cdrJPEG
@@ -522,7 +522,7 @@ Private Sub cmdSave_Click()
         If Not exportRunner.ExportDocument(doc, outputPath, exportFormat, pageRangeText) Then
             exportError = exportRunner.LastErrorNumber
             exportDescription = exportRunner.LastErrorDescription
-            If exportFormat = cdrPNG Or exportFormat = cdrJPEG Or Len(Dir$(outputPath)) = 0 Then
+            If exportFormat = cdrPNG Or exportFormat = cdrJPEG Or exportFormat = cdrDXF Or Len(Dir$(outputPath)) = 0 Then
                 On Error Resume Next
                 If Not originalPage Is Nothing Then originalPage.Activate
                 On Error GoTo ExportFailed
@@ -634,4 +634,3 @@ Private Function GetExportExtension(ByVal filterValue As cdrFilter) As String
     End Select
 
 End Function
-

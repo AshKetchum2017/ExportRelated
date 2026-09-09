@@ -231,6 +231,30 @@ Public Sub AddKeyedComboItem(ByVal combo As Object, ByVal displayName As String,
     combo.List(combo.ListCount - 1, 1) = itemKey
 End Sub
 
+' Pengisi ComboBox umum, dipakai juga oleh settings export non-bitmap.
+Public Sub PopulateKeyedChoices(ByVal combo As Object, ByVal labels As Variant, ByVal keys As Variant)
+    Dim itemIndex As Long
+    combo.Clear
+    combo.Style = fmStyleDropDownList
+    combo.ColumnCount = 2
+    combo.ColumnWidths = "240 pt;0 pt"
+    combo.BoundColumn = 1
+    For itemIndex = LBound(labels) To UBound(labels)
+        AddKeyedComboItem combo, CStr(labels(itemIndex)), CStr(keys(itemIndex))
+    Next itemIndex
+End Sub
+
+' Dipindahkan dari JPEGSettings; daftar dan indeks persentase tetap sama.
+Public Sub PopulatePercentages(ByVal combo As Object, ByVal defaultValue As Long)
+    Dim percentage As Long
+    combo.Clear
+    combo.Style = fmStyleDropDownList
+    For percentage = 0 To 100
+        combo.AddItem CStr(percentage) & "%"
+    Next percentage
+    combo.ListIndex = defaultValue
+End Sub
+
 Public Function SelectKeyedComboItem(ByVal combo As Object, ByVal itemKey As String) As Boolean
     Dim itemIndex As Long
 

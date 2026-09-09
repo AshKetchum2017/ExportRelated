@@ -109,7 +109,12 @@ Public Function BuildExportFileName(ByVal baseName As String, _
         Exit Function
     End If
 
-    If TryParseStandaloneValues(templateValue, standaloneValues) Then
+    If TryParseExecutionValues(templateValue, standaloneValues) Then
+        If pageIndex < 0 Or pageIndex > UBound(standaloneValues) Then
+            Err.Raise 5, "ExportTemplateParser", "Nilai blok nama tidak tersedia untuk output ini."
+        End If
+        BuildExportFileName = standaloneValues(pageIndex)
+    ElseIf TryParseStandaloneValues(templateValue, standaloneValues) Then
         BuildExportFileName = BuildStructuredReplacement(RemoveReplacementBraces(standaloneValues(0)), _
             standaloneValues, pageIndex, pageNumber)
     Else
@@ -180,7 +185,9 @@ Public Function ValidateNameTemplate(ByVal templateText As String, _
         Exit Function
     End If
 
-    If TryParseStandaloneValues(templateText, commandValues) Then
+    If TryParseExecutionValues(templateText, commandValues) Then
+        ValidateNameTemplate = (UBound(commandValues) + 1 = pageCount)
+    ElseIf TryParseStandaloneValues(templateText, commandValues) Then
         ValidateNameTemplate = (UBound(commandValues) = 0 Or UBound(commandValues) + 1 = pageCount)
     Else
         ValidateNameTemplate = True
@@ -203,7 +210,7 @@ Private Function TryParseAffix(ByVal templateText As String, ByRef values() As S
     If usesSync Then
         values = SplitSyncNameValues(templateText)
     Else
-        values = SplitNameValues(templateText, True)
+        values = SplitNameValues(templateText)
     End If
     firstValue = values(0)
     hasPrefix = (Right$(firstValue, 2) = "__")
@@ -240,7 +247,7 @@ Private Function TryParseAffix(ByVal templateText As String, ByRef values() As S
     End If
     values(markerIndex) = RemoveReplacementBraces(firstValue)
     For valueIndex = 0 To UBound(values)
-        If Len(RemoveReplacementBraces(values(valueIndex))) = 0 Then Err.Raise 5, "ExportTemplateParser", "Nilai prefix/suffix tidak boleh kosong."
+        If Len(Trim$(RemoveReplacementBraces(values(valueIndex)))) = 0 Then Err.Raise 5, "ExportTemplateParser", "Nilai prefix/suffix tidak boleh kosong."
         If valueIndex <> markerIndex Then
             If isPrefix Then
                 values(valueIndex) = RemoveReplacementBraces(values(valueIndex)) & literalUnderscores
@@ -276,7 +283,7 @@ Private Function BuildCommandReplacement(ByVal targetText As String, _
     End If
 
     If valueIndex >= 0 And valueIndex <= UBound(commandValues) Then
-        commandValue = Trim$(commandValues(valueIndex))
+        commandValue = commandValues(valueIndex)
     Else
         commandValue = CStr(pageNumber)
     End If
@@ -319,7 +326,7 @@ Private Function BuildStructuredReplacement(ByVal targetText As String, _
     replacementNumber = Mid$(baseCommand, numberStart, numberEnd - numberStart + 1)
 
     If outputIndex > 0 And outputIndex <= UBound(commandValues) Then
-        replacementNumber = Trim$(commandValues(outputIndex))
+        replacementNumber = commandValues(outputIndex)
     End If
 
     BuildStructuredReplacement = _
@@ -385,7 +392,35 @@ Private Function IsSequenceValueToken(ByVal valueText As String) As Boolean
     IsSequenceValueToken = True
 End Function
 
-' Tanpa /*: {NAMA}_A, B -> NAMA_A, NAMA_B.
+' Blok nama langsung dijalankan berurutan; setiap blok mempunyai pola sendiri.
+' Jumlah nilai menentukan batas blok, terlepas dari pembagian sync txbPage.
+Private Function TryParseExecutionValues(ByVal templateText As String, ByRef values() As String) As Boolean
+    Dim blocks() As String
+    Dim blockValues() As String
+    Dim blockIndex As Long
+    Dim valueIndex As Long
+    Dim valueCount As Long
+    Dim outputName As String
+
+    If InStr(1, templateText, "/*", vbBinaryCompare) > 0 Then Exit Function
+    If Not HasNameSyncDelimiter(templateText) Then Exit Function
+    If Not UsesBracedReplacement(templateText) Then Exit Function
+
+    blocks = SplitSyncNameValues(templateText)
+    For blockIndex = 0 To UBound(blocks)
+        If Not TryParseStandaloneValues(blocks(blockIndex), blockValues) Then
+            Err.Raise 5, "ExportTemplateParser", "Setiap blok nama harus memiliki pola dan nilai, misalnya {A}1,2; {B}1,2."
+        End If
+        For valueIndex = 0 To UBound(blockValues)
+            outputName = BuildStructuredReplacement(RemoveReplacementBraces(blockValues(0)), _
+                blockValues, valueIndex, 0)
+            AddStringValue values, valueCount, outputName, True
+        Next valueIndex
+    Next blockIndex
+    TryParseExecutionValues = True
+End Function
+
+' Tanpa /*: {NAMA}_A,B -> NAMA_A, NAMA_B; spasi setelah koma tetap literal.
 ' Prefix/suffix dari nilai pertama dipakai ulang oleh BuildStructuredReplacement.
 Private Function TryParseStandaloneValues(ByVal templateText As String, ByRef values() As String) As Boolean
     Dim valueIndex As Long
@@ -394,7 +429,7 @@ Private Function TryParseStandaloneValues(ByVal templateText As String, ByRef va
 
     If InStr(1, templateText, "/*", vbBinaryCompare) > 0 Then Exit Function
     If Not UsesBracedReplacement(templateText) Then Exit Function
-    values = SplitNameValues(templateText, True)
+    values = SplitNameValues(templateText)
     If Not FindFirstSequenceValueRangeOutsideBraces(values(0), rangeStart, rangeEnd) Then Exit Function
     For valueIndex = 1 To UBound(values)
         If Not IsSequenceValueToken(values(valueIndex)) Then
@@ -429,8 +464,7 @@ Private Function FindFirstNumberRangeOutsideBraces(ByVal sourceText As String, B
     Next position
 End Function
 
-Private Function SplitNameValues(ByVal commandText As String, _
-                                 Optional ByVal splitAllCommas As Boolean = False) As String()
+Private Function SplitNameValues(ByVal commandText As String) As String()
     Dim values() As String
     Dim valueCount As Long
     Dim position As Long
@@ -449,14 +483,14 @@ Private Function SplitNameValues(ByVal commandText As String, _
             Case "}"
                 If braceDepth > 0 Then braceDepth = braceDepth - 1
             Case ","
-                If braceDepth = 0 And (splitAllCommas Or IsNameValueDelimiter(commandText, position)) Then
-                    AddStringValue values, valueCount, Mid$(commandText, tokenStart, position - tokenStart)
+                If braceDepth = 0 Then
+                    AddStringValue values, valueCount, Mid$(commandText, tokenStart, position - tokenStart), True
                     tokenStart = position + 1
                 End If
         End Select
     Next position
 
-    AddStringValue values, valueCount, Mid$(commandText, tokenStart)
+    AddStringValue values, valueCount, Mid$(commandText, tokenStart), True
     SplitNameValues = values
 End Function
 
@@ -509,50 +543,21 @@ Private Function HasNameSyncDelimiter(ByVal commandText As String) As Boolean
     Next position
 End Function
 
-Private Sub AddStringValue(ByRef values() As String, ByRef valueCount As Long, ByVal valueText As String)
+Private Sub AddStringValue(ByRef values() As String, ByRef valueCount As Long, ByVal valueText As String, _
+                           Optional ByVal preserveSpaces As Boolean = False)
     If valueCount = 0 Then
         ReDim values(0 To 0)
     Else
         ReDim Preserve values(0 To valueCount)
     End If
 
-    values(valueCount) = Trim$(valueText)
+    If preserveSpaces Then
+        values(valueCount) = valueText
+    Else
+        values(valueCount) = Trim$(valueText)
+    End If
     valueCount = valueCount + 1
 End Sub
-
-Private Function IsNameValueDelimiter(ByVal commandText As String, ByVal commaPosition As Long) As Boolean
-    Dim previousChar As String
-    Dim nextChar As String
-
-    previousChar = AdjacentNonSpaceChar(commandText, commaPosition, -1)
-    nextChar = AdjacentNonSpaceChar(commandText, commaPosition, 1)
-
-    If previousChar Like "[0-9]" And nextChar Like "[0-9]" Then
-        If commaPosition > 1 And commaPosition < Len(commandText) Then
-            If Mid$(commandText, commaPosition - 1, 1) Like "[0-9]" And _
-               Mid$(commandText, commaPosition + 1, 1) Like "[0-9]" Then
-                IsNameValueDelimiter = False
-                Exit Function
-            End If
-        End If
-    End If
-
-    IsNameValueDelimiter = True
-End Function
-
-Private Function AdjacentNonSpaceChar(ByVal sourceText As String, ByVal startPosition As Long, ByVal direction As Long) As String
-    Dim position As Long
-
-    position = startPosition + direction
-    Do While position >= 1 And position <= Len(sourceText)
-        If Mid$(sourceText, position, 1) <> " " Then
-            AdjacentNonSpaceChar = Mid$(sourceText, position, 1)
-            Exit Function
-        End If
-
-        position = position + direction
-    Loop
-End Function
 
 Private Function UsesBracedReplacement(ByVal commandText As String) As Boolean
     UsesBracedReplacement = (InStr(1, commandText, "{", vbBinaryCompare) > 0 Or _

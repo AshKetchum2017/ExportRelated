@@ -132,17 +132,6 @@ Private Sub PopulateSubFormats()
     cmbSubFormat.ListIndex = 0
 End Sub
 
-Private Sub PopulatePercentages(ByVal combo As Object, ByVal defaultValue As Long)
-    Dim percentage As Long
-
-    combo.Clear
-    combo.Style = fmStyleDropDownList
-    For percentage = 0 To 100
-        combo.AddItem CStr(percentage) & "%"
-    Next percentage
-    combo.ListIndex = defaultValue
-End Sub
-
 Private Sub LoadPresetList()
     Dim reader As JPEGPresetReader
     Dim presetIndex As Long

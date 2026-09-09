@@ -5,6 +5,7 @@ Private pSettings As ExportSettings
 Public SourceDocument As Document
 Public PNGSettingsXML As String
 Public JPEGSettingsXML As String
+Public DXFSettingsXML As String
 Public PDFPreset As String
 Public PDFPresetDisplay As String
 Public PDFCompatibility As String
@@ -41,6 +42,7 @@ Public Sub CopyFrom(ByVal source As ExportSettingItem)
     Set SourceDocument = source.SourceDocument
     PNGSettingsXML = source.PNGSettingsXML
     JPEGSettingsXML = source.JPEGSettingsXML
+    DXFSettingsXML = source.DXFSettingsXML
     PDFPreset = source.PDFPreset
     PDFPresetDisplay = source.PDFPresetDisplay
     PDFCompatibility = source.PDFCompatibility
@@ -56,6 +58,8 @@ Public Sub EnsureFormatSettings()
     Dim png As PNGPreset
     Dim jpegStore As JPEGSettingsStore
     Dim jpeg As JPEGPreset
+    Dim dxfStore As DXFSettingsStore
+    Dim dxf As DXFExportSettings
 
     Select Case pSettings.FormatText
         Case ".png"
@@ -78,7 +82,11 @@ Public Sub EnsureFormatSettings()
                 PDFCompatibility = GetSetting("RinCorelMacros", "ExportRelatedMacro", "PDFCompatibility", "Acrobat 9.0")
             End If
         Case ".dxf"
-            ' Workflow existing belum memiliki preset/opsi DXF yang bisa diatur.
+            If Len(DXFSettingsXML) > 0 Then Exit Sub
+            Set dxfStore = New DXFSettingsStore
+            Set dxf = dxfStore.LoadSettings()
+            If dxf Is Nothing Then Set dxf = New DXFExportSettings
+            DXFSettingsXML = dxfStore.SerializeSettings(dxf)
         Case Else
             Err.Raise 5, "ExportSettingItem", "Pilih format PDF, DXF, PNG, atau JPG."
     End Select
@@ -98,7 +106,8 @@ Public Property Get PresetDisplay() As String
             End If
             PresetDisplay = ExportPresetText(xml.documentElement, "name", "Default")
         Case ".dxf"
-            PresetDisplay = "Default"
+            Set xml = ParseExportPresetXML(DXFSettingsXML, "ExportSettingItem")
+            PresetDisplay = ExportPresetText(xml.documentElement, "name", "Default")
     End Select
     If Len(PresetDisplay) = 0 Then PresetDisplay = "Default"
 End Property
@@ -132,6 +141,14 @@ Public Function ReadJPEGSnapshot() As JPEGPreset
     If snapshot Is Nothing Then Err.Raise 5, "ExportSettingItem", "Snapshot item bukan JPEG."
     store.ValidateSettings snapshot
     Set ReadJPEGSnapshot = snapshot
+End Function
+
+' Snapshot DXF wajib tersedia dan valid sebelum export queue.
+Public Function ReadDXFSnapshot() As DXFExportSettings
+    Dim store As DXFSettingsStore
+    If Len(DXFSettingsXML) = 0 Then Err.Raise 5, "ExportSettingItem", "Snapshot DXF kosong. Buka Modify lalu Save."
+    Set store = New DXFSettingsStore
+    Set ReadDXFSnapshot = store.ParseXML(DXFSettingsXML)
 End Function
 
 ' Hitung file memakai parser existing, bukan menghitung page atau memecah summary.

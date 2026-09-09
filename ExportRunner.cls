@@ -32,6 +32,10 @@ Public Function ExportDocument(ByVal doc As Document, ByVal outputPath As String
         ExportDocument = ExportJPEGDocument(doc, outputPath)
         Exit Function
     End If
+    If exportFormat = cdrDXF Then
+        ExportDocument = ExportDXFDocument(doc, outputPath)
+        Exit Function
+    End If
 
     On Error Resume Next
     pLastErrorNumber = 0
@@ -75,7 +79,7 @@ Private Function ExportQueueDocument(ByVal doc As Document, ByVal outputPath As 
     Dim pdfExporter As PDFExport
     Dim png As PNGPreset
     Dim jpeg As JPEGPreset
-    Dim filter As ExportFilter
+    Dim dxf As DXFExportSettings
 
     On Error GoTo ExportFailed
     pLastErrorNumber = 0
@@ -99,10 +103,8 @@ Private Function ExportQueueDocument(ByVal doc As Document, ByVal outputPath As 
             pLastErrorNumber = pdfExporter.LastErrorNumber
             pLastErrorDescription = pdfExporter.LastErrorDescription
         Case cdrDXF
-            Set filter = doc.ExportEx(outputPath, cdrDXF, cdrCurrentPage)
-            If filter Is Nothing Then Err.Raise 91, "ExportRunner", "ExportEx DXF tidak mengembalikan filter."
-            filter.Finish
-            ExportQueueDocument = True
+            Set dxf = item.ReadDXFSnapshot()
+            ExportQueueDocument = ExportDXFDocument(doc, outputPath, dxf)
         Case Else
             Err.Raise 5, "ExportRunner", "Format queue tidak didukung."
     End Select
@@ -110,6 +112,54 @@ Private Function ExportQueueDocument(ByVal doc As Document, ByVal outputPath As 
 ExportFailed:
     pLastErrorNumber = Err.Number
     pLastErrorDescription = "Export item queue: " & Err.Description
+End Function
+
+' Late binding hanya untuk opsi filter DXF; tidak perlu reference FilterDXFLib baru.
+Private Function ExportDXFDocument(ByVal doc As Document, ByVal outputPath As String, _
+                                    Optional ByVal snapshot As DXFExportSettings = Nothing) As Boolean
+    Dim settings As DXFExportSettings
+    Dim store As DXFSettingsStore
+    Dim filter As Object
+    Dim operation As String
+
+    On Error GoTo ExportFailed
+    pLastErrorNumber = 0
+    pLastErrorDescription = vbNullString
+    operation = "Membaca pengaturan DXF"
+    Set store = New DXFSettingsStore
+    If snapshot Is Nothing Then
+        Set settings = store.LoadSettings()
+        If settings Is Nothing Then Set settings = New DXFExportSettings
+    Else
+        Set settings = snapshot
+    End If
+    store.ValidateSettings settings
+    operation = "Document.ExportEx DXF"
+    Set filter = doc.ExportEx(outputPath, cdrDXF, cdrCurrentPage)
+    If filter Is Nothing Then Err.Raise 91, "ExportRunner", "ExportEx DXF tidak mengembalikan filter."
+    operation = "DXF.Version = " & CStr(settings.AutoCADVersion)
+    filter.Version = settings.AutoCADVersion
+    operation = "DXF.Units"
+    filter.Units = settings.AutoCADUnits
+    operation = "DXF.BitmapType"
+    filter.BitmapType = settings.BitmapType
+    operation = "DXF.TextAsCurves"
+    filter.TextAsCurves = settings.TextAsCurves
+    operation = "DXF.FillUnmapped"
+    filter.FillUnmapped = settings.FillUnmapped
+    If settings.FillUnmapped Then
+        operation = "DXF.SetFillColorRGB"
+        filter.SetFillColorRGB settings.FillRed, settings.FillGreen, settings.FillBlue
+    End If
+    ' CurvesAs/Tolerance hanya disimpan. Penerapan ditunda sesuai keputusan user:
+    ' belum ada properti terkait pada FilterDXF.tlb CorelDRAW 2024.
+    operation = "DXF.Finish"
+    filter.Finish
+    ExportDXFDocument = True
+    Exit Function
+ExportFailed:
+    pLastErrorNumber = Err.Number
+    pLastErrorDescription = operation & ": " & Err.Description
 End Function
 
 Private Function ExportJPEGDocument(ByVal doc As Document, ByVal outputPath As String) As Boolean

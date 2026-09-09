@@ -1,3 +1,7 @@
+# Ignore all files in the Export Related directory
 *.env
 *.log
 *.md
+
+# Ignore all files in the Export Related directory except for Changelog.log
+!Changelog.log
