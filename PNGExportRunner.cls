@@ -13,7 +13,8 @@ Public Property Get LastErrorDescription() As String
 End Property
 
 Public Function ExportDocument(ByVal doc As Document, ByVal outputPath As String, _
-                               Optional ByVal snapshot As PNGPreset = Nothing) As Boolean
+                               Optional ByVal snapshot As PNGPreset = Nothing, _
+                               Optional ByVal tempFiles As ExportTempFiles = Nothing) As Boolean
     Dim store As PNGSettingsStore
     Dim settings As PNGPreset
     Dim options As StructExportOptions
@@ -63,7 +64,11 @@ Public Function ExportDocument(ByVal doc As Document, ByVal outputPath As String
     If Not IsCompletePNG(pendingPath) Then Err.Raise 5, "PNGExportRunner", "File PNG belum terbentuk lengkap."
     operation = "Memindahkan hasil ke file tujuan"
     fso.CopyFile pendingPath, outputPath, True
-    fso.DeleteFile pendingPath
+    If tempFiles Is Nothing Then
+        fso.DeleteFile pendingPath
+    Else
+        tempFiles.DeleteOrDefer pendingPath
+    End If
     ExportDocument = True
     Exit Function
 
@@ -73,8 +78,12 @@ ExportFailed:
     On Error Resume Next
     Set pngFilter = Nothing
     If Len(pendingPath) > 0 Then
-        If Not fso Is Nothing Then
-            If fso.FileExists(pendingPath) Then fso.DeleteFile pendingPath
+        If tempFiles Is Nothing Then
+            If Not fso Is Nothing Then
+                If fso.FileExists(pendingPath) Then fso.DeleteFile pendingPath
+            End If
+        Else
+            tempFiles.DeleteOrDefer pendingPath
         End If
     End If
     On Error GoTo 0

@@ -38,7 +38,7 @@ Private Sub UserForm_Initialize()
 
 InitializeFailed:
     errorNumber = Err.Number
-    errorSource = Err.Source
+    errorSource = Err.source
     errorDescription = Err.Description
     ' Tampilkan error asli sebelum diteruskan melewati proses Load UserForm.
     MsgBox "Operasi: " & operation & vbCrLf & _
@@ -72,7 +72,7 @@ Private Sub EditQueueItem(ByVal rowIndex As Long)
 
     On Error GoTo EditFailed
     operation = "Membaca item terpilih"
-    If rowIndex >= 0 Then Set source = pItems.Item(rowIndex + 1)
+    If rowIndex >= 0 Then Set source = pItems.item(rowIndex + 1)
     operation = "UserForms.Add(ExportRelatedSettings) / Initialize"
     Set editor = UserForms.Add("ExportRelatedSettings")
     operation = "BeginQueueEdit pada " & TypeName(editor)
@@ -106,7 +106,7 @@ Private Sub EditQueueItem(ByVal rowIndex As Long)
 
 EditFailed:
     errorNumber = Err.Number
-    errorSource = Err.Source
+    errorSource = Err.source
     errorDescription = Err.Description
     On Error Resume Next
     If Not editor Is Nothing Then Unload editor
@@ -149,14 +149,14 @@ Private Sub SyncSelectedLayers()
     hasSelection = (pList.ListIndex >= 0)
     pBinding = True
     If hasSelection Then
-        Set item = pItems.Item(pList.ListIndex + 1)
-        chkLayer1.Value = item.Layer1
-        chkLayer2.Value = item.Layer2
-        chkLayer3.Value = item.Layer3
+        Set item = pItems.item(pList.ListIndex + 1)
+        chkLayer1.value = item.Layer1
+        chkLayer2.value = item.Layer2
+        chkLayer3.value = item.Layer3
     Else
-        chkLayer1.Value = True
-        chkLayer2.Value = False
-        chkLayer3.Value = False
+        chkLayer1.value = True
+        chkLayer2.value = False
+        chkLayer3.value = False
     End If
     chkLayer1.Enabled = hasSelection And Not pExporting
     chkLayer2.Enabled = hasSelection And Not pExporting
@@ -165,7 +165,7 @@ Private Sub SyncSelectedLayers()
     cmdModify.Enabled = hasSelection And Not pExporting
     cmdExport.Enabled = (pItems.Count > 0) And Not pExporting
     cmdAddSetting.Enabled = Not pExporting
-    cmdCancel.Enabled = Not pExporting
+    cmdClose.Enabled = Not pExporting
     pList.Enabled = Not pExporting
     pBinding = False
 End Sub
@@ -174,10 +174,10 @@ Private Sub SaveSelectedLayers()
     Dim item As ExportSettingItem
     If pBinding Or pExporting Then Exit Sub
     If pList.ListIndex < 0 Then Exit Sub
-    Set item = pItems.Item(pList.ListIndex + 1)
-    item.Layer1 = CBool(chkLayer1.Value)
-    item.Layer2 = CBool(chkLayer2.Value)
-    item.Layer3 = CBool(chkLayer3.Value)
+    Set item = pItems.item(pList.ListIndex + 1)
+    item.Layer1 = CBool(chkLayer1.value)
+    item.Layer2 = CBool(chkLayer2.value)
+    item.Layer3 = CBool(chkLayer3.value)
 End Sub
 
 Private Sub chkLayer1_Click()
@@ -196,6 +196,8 @@ Private Sub cmdExport_Click()
     Dim runner As ExportQueueRunner
     Dim succeeded As Boolean
     Dim resultMessage As String
+    Dim warningMessage As String
+    Dim messageStyle As VbMsgBoxStyle
     Dim errorNumber As Long
     Dim errorDescription As String
 
@@ -207,11 +209,17 @@ Private Sub cmdExport_Click()
     SyncSelectedLayers
     Set runner = New ExportQueueRunner
     succeeded = runner.Run(pItems)
+    warningMessage = runner.WarningDescription
     pExporting = False
     If succeeded Then
         SyncSelectedLayers
-        MsgBox "Export selesai: " & CStr(runner.CompletedFiles) & " file dari " & CStr(pItems.Count) & " item.", _
-            vbInformation, "Export Queue"
+        resultMessage = "Export selesai: " & CStr(runner.CompletedFiles) & " file dari " & CStr(pItems.Count) & " item."
+        messageStyle = vbInformation
+        If Len(warningMessage) > 0 Then
+            resultMessage = resultMessage & vbCrLf & vbCrLf & "Peringatan cleanup:" & vbCrLf & warningMessage
+            messageStyle = vbExclamation
+        End If
+        MsgBox resultMessage, messageStyle, "Export Queue"
     Else
         If runner.FailedItemIndex > 0 And runner.FailedItemIndex <= pItems.Count Then
             pList.ListIndex = runner.FailedItemIndex - 1
@@ -219,8 +227,11 @@ Private Sub cmdExport_Click()
         SyncSelectedLayers
         resultMessage = "Export dihentikan. File yang sudah diekspor: " & CStr(runner.CompletedFiles) & "."
         If runner.FailedItemIndex > 0 Then resultMessage = resultMessage & vbCrLf & "Item: " & CStr(runner.FailedItemIndex)
-        MsgBox resultMessage & vbCrLf & "Error " & CStr(runner.LastErrorNumber) & ": " & runner.LastErrorDescription, _
-            vbExclamation, "Export Queue"
+        resultMessage = resultMessage & vbCrLf & "Error " & CStr(runner.LastErrorNumber) & ": " & runner.LastErrorDescription
+        If Len(warningMessage) > 0 Then
+            resultMessage = resultMessage & vbCrLf & vbCrLf & "Peringatan cleanup:" & vbCrLf & warningMessage
+        End If
+        MsgBox resultMessage, vbExclamation, "Export Queue"
     End If
     Exit Sub
 
@@ -234,7 +245,7 @@ ExportFailed:
     MsgBox "Gagal menjalankan export queue (" & CStr(errorNumber) & "): " & errorDescription, vbExclamation, "Export Queue"
 End Sub
 
-Private Sub cmdCancel_Click()
+Private Sub cmdClose_Click()
     If pExporting Then Exit Sub
     Unload Me
 End Sub

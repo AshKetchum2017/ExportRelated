@@ -13,14 +13,15 @@ End Property
 
 Public Function ExportDocument(ByVal doc As Document, ByVal outputPath As String, ByVal exportFormat As cdrFilter, _
                                Optional ByVal pageRangeText As String = vbNullString, _
-                               Optional ByVal queueItem As ExportSettingItem = Nothing) As Boolean
+                               Optional ByVal queueItem As ExportSettingItem = Nothing, _
+                               Optional ByVal tempFiles As ExportTempFiles = Nothing) As Boolean
     Dim pdfExport As PDFExport
     Dim expFilter As ExportFilter
     Dim errorNumber As Long
     Dim errorDescription As String
 
     If Not queueItem Is Nothing Then
-        ExportDocument = ExportQueueDocument(doc, outputPath, exportFormat, pageRangeText, queueItem)
+        ExportDocument = ExportQueueDocument(doc, outputPath, exportFormat, pageRangeText, queueItem, tempFiles)
         Exit Function
     End If
 
@@ -73,7 +74,7 @@ End Function
 
 Private Function ExportQueueDocument(ByVal doc As Document, ByVal outputPath As String, _
                                      ByVal exportFormat As cdrFilter, ByVal pageRangeText As String, _
-                                     ByVal item As ExportSettingItem) As Boolean
+                                     ByVal item As ExportSettingItem, ByVal tempFiles As ExportTempFiles) As Boolean
     Dim pngExporter As PNGExportRunner
     Dim jpegExporter As JPEGExportRunner
     Dim pdfExporter As PDFExport
@@ -88,13 +89,13 @@ Private Function ExportQueueDocument(ByVal doc As Document, ByVal outputPath As 
         Case cdrPNG
             Set png = item.ReadPNGSnapshot()
             Set pngExporter = New PNGExportRunner
-            ExportQueueDocument = pngExporter.ExportDocument(doc, outputPath, png)
+            ExportQueueDocument = pngExporter.ExportDocument(doc, outputPath, png, tempFiles)
             pLastErrorNumber = pngExporter.LastErrorNumber
             pLastErrorDescription = pngExporter.LastErrorDescription
         Case cdrJPEG
             Set jpeg = item.ReadJPEGSnapshot()
             Set jpegExporter = New JPEGExportRunner
-            ExportQueueDocument = jpegExporter.ExportDocument(doc, outputPath, jpeg)
+            ExportQueueDocument = jpegExporter.ExportDocument(doc, outputPath, jpeg, tempFiles)
             pLastErrorNumber = jpegExporter.LastErrorNumber
             pLastErrorDescription = jpegExporter.LastErrorDescription
         Case cdrPDF

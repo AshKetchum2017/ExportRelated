@@ -4,6 +4,7 @@ Private pLastErrorNumber As Long
 Private pLastErrorDescription As String
 Private pFailedItemIndex As Long
 Private pCompletedFiles As Long
+Private pTempFiles As ExportTempFiles
 
 Public Property Get LastErrorNumber() As Long
     LastErrorNumber = pLastErrorNumber
@@ -19,6 +20,10 @@ End Property
 
 Public Property Get CompletedFiles() As Long
     CompletedFiles = pCompletedFiles
+End Property
+
+Public Property Get WarningDescription() As String
+    If Not pTempFiles Is Nothing Then WarningDescription = pTempFiles.WarningDescription
 End Property
 
 Public Function Run(ByVal items As Collection) As Boolean
@@ -41,6 +46,7 @@ Public Function Run(ByVal items As Collection) As Boolean
     pLastErrorDescription = vbNullString
     pFailedItemIndex = 0
     pCompletedFiles = 0
+    Set pTempFiles = New ExportTempFiles
     Set originalDocument = ActiveDocument
     Set prepared = New Collection
     Set allGroups = New Collection
@@ -89,6 +95,7 @@ RestoreDocument:
         If pLastErrorNumber = 0 Then pLastErrorNumber = 5
         pLastErrorDescription = pLastErrorDescription & vbCrLf & restoreError
     End If
+    If Not pTempFiles Is Nothing Then pTempFiles.RetryPending
     Exit Function
 
 RunFailed:
@@ -226,7 +233,7 @@ Private Function ExecuteItem(ByVal item As ExportSettingItem, ByVal groups As Co
         doc.Pages(parser.FirstPageInGroup(group)).Activate
         pendingPath = fso.BuildPath(fso.GetParentFolderName(outputPath), fso.GetTempName & item.Settings.FormatText)
         operation = "Export " & outputPath
-        If Not runner.ExportDocument(doc, pendingPath, ResolveFormat(item.Settings.FormatText), parser.PageGroupToRangeText(group), item) Then
+        If Not runner.ExportDocument(doc, pendingPath, ResolveFormat(item.Settings.FormatText), parser.PageGroupToRangeText(group), item, pTempFiles) Then
             exportError = runner.LastErrorNumber
             If exportError = 0 Then exportError = 5
             Err.Raise exportError, "ExportQueueRunner", runner.LastErrorDescription
@@ -237,7 +244,7 @@ Private Function ExecuteItem(ByVal item As ExportSettingItem, ByVal groups As Co
         fso.CopyFile pendingPath, outputPath, True
         pCompletedFiles = pCompletedFiles + 1
         operation = "Membersihkan file sementara " & pendingPath
-        fso.DeleteFile pendingPath
+        pTempFiles.DeleteOrDefer pendingPath
         pendingPath = vbNullString
     Next groupIndex
     ExecuteItem = True
@@ -245,13 +252,7 @@ Private Function ExecuteItem(ByVal item As ExportSettingItem, ByVal groups As Co
 RestoreState:
     cleanupError = RestoreItemState(doc, originalPage, originalLayer, originalSelection, layers)
     If Len(pendingPath) > 0 Then
-        On Error Resume Next
-        Err.Clear
-        If Not fso Is Nothing Then
-            If fso.FileExists(pendingPath) Then fso.DeleteFile pendingPath
-        End If
-        If Err.Number <> 0 Then cleanupError = cleanupError & vbCrLf & "Hapus file sementara: " & Err.Description
-        On Error GoTo 0
+        pTempFiles.DeleteOrDefer pendingPath
     End If
     If Len(cleanupError) > 0 Then
         ExecuteItem = False
