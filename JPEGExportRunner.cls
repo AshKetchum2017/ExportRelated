@@ -57,7 +57,9 @@ Public Function ExportDocument(ByVal doc As Document, ByVal outputPath As String
     If jpegFilter Is Nothing Then Err.Raise 91, "JPEGExportRunner", "ExportEx tidak mengembalikan filter JPEG."
 
     operation = "Mengatur quality dan blur filter JPEG"
-    jpegFilter.Compression = settings.Quality
+    ' Quality UI/XML berlawanan dengan Compression filter: 100% -> 0.
+    ' Pemetaan ini dikonfirmasi lewat uji export pengguna, 2026-09-10.
+    jpegFilter.Compression = 100 - settings.Quality
     jpegFilter.Smoothing = settings.Blur
     operation = "Mengatur optimize dan progressive filter JPEG"
     jpegFilter.Optimized = settings.Optimize

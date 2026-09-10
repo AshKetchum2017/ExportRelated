@@ -306,7 +306,7 @@ Public Function ReadCurrentSettings() As JPEGPreset
     Set ReadCurrentSettings = settings
 End Function
 
-Private Sub cmdCancel_Click()
+Private Sub cmdClose_Click()
     Unload Me
 End Sub
 
