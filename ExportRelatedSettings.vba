@@ -5,6 +5,7 @@ Option Explicit
 Private Const REG_APP_NAME As String = "RinCorelMacros"
 Private Const REG_SECTION_NAME As String = "ExportRelatedMacro"
 Private Const REG_LAST_DIRECTORY_KEY As String = "LastDirectory"
+Private Const REG_PARENT_DIRECTORY_KEY As String = "UseParentDirectory"
 Private Const REG_LAST_EXPORT_FORMAT_KEY As String = "LastExportFormat"
 Private Const BIF_RETURNONLYFSDIRS As Long = &H1
 Private Const BIF_USENEWUI As Long = &H50
@@ -14,6 +15,7 @@ Private Const SELECT_FOLDER_DUMMY_FILE As String = "Select this folder"
 Private isLoadingSettings As Boolean
 Private pQueueDraft As ExportSettingItem
 Private pQueueResult As ExportSettingItem
+Private pManualDirectory As String
 
 ' Tanpa pemanggilan ini, cmdSave tetap menjalankan single export existing.
 Public Sub BeginQueueEdit(ByVal item As ExportSettingItem)
@@ -41,6 +43,9 @@ Public Sub BeginQueueEdit(ByVal item As ExportSettingItem)
     isLoadingSettings = True
     operation = "Mengisi txbDirectory.Text"
     txbDirectory.Text = pQueueDraft.Settings.Directory
+    If Not pQueueDraft.Settings.UseParentDirectory Then pManualDirectory = txbDirectory.Text
+    chkParentDirectory.Value = pQueueDraft.Settings.UseParentDirectory
+    UpdateParentDirectoryControls
     operation = "Mengisi cmbExFormat.Value"
     cmbExFormat.Value = pQueueDraft.Settings.FormatText
     operation = "Mengisi txbPage.Text"
@@ -73,7 +78,9 @@ Private Sub SaveQueueItem()
     pQueueDraft.Settings.LoadFromForm Me
     pQueueDraft.Settings.FormatText = NormalizeExportFormatText(cmbExFormat.Value)
     pQueueDraft.ValidateForQueue
+    txbDirectory.Text = pQueueDraft.Settings.Directory
     SaveCurrentDirectorySetting
+    SaveParentDirectorySetting
     Set pQueueResult = pQueueDraft.Clone()
     Me.Hide
     Exit Sub
@@ -81,6 +88,34 @@ SaveFailed:
     errorNumber = Err.Number
     errorDescription = Err.Description
     MsgBox "Gagal menyimpan item export (" & CStr(errorNumber) & "): " & errorDescription, vbExclamation, "Export Queue"
+End Sub
+
+Private Sub chkParentDirectory_Click()
+    If isLoadingSettings Then Exit Sub
+    If CBool(chkParentDirectory.Value) Then pManualDirectory = txbDirectory.Text
+    UpdateParentDirectoryControls
+End Sub
+
+Private Sub UpdateParentDirectoryControls()
+    Dim doc As Document
+    Dim settings As ExportSettings
+    txbDirectory.Enabled = Not CBool(chkParentDirectory.Value)
+    cmdBrowse.Enabled = Not CBool(chkParentDirectory.Value)
+    If CBool(chkParentDirectory.Value) Then
+        If Not pQueueDraft Is Nothing Then
+            Set doc = pQueueDraft.SourceDocument
+        ElseIf Application.Documents.Count > 0 Then
+            Set doc = ActiveDocument
+        End If
+        Set settings = New ExportSettings
+        txbDirectory.Text = settings.DocumentDirectory(doc)
+    Else
+        txbDirectory.Text = pManualDirectory
+    End If
+End Sub
+
+Private Sub SaveParentDirectorySetting()
+    SaveSetting REG_APP_NAME, REG_SECTION_NAME, REG_PARENT_DIRECTORY_KEY, CStr(CBool(chkParentDirectory.Value))
 End Sub
 
 Private Sub UserForm_QueryClose(Cancel As Integer, CloseMode As Integer)
@@ -224,6 +259,11 @@ Private Sub LoadSavedSettings()
         operation = "Mengisi cmbExFormat.Value dari LastExportFormat"
         cmbExFormat.value = NormalizeExportFormatText(savedExportFormat)
     End If
+    operation = "GetSetting UseParentDirectory"
+    chkParentDirectory.Value = (StrComp(GetSetting(REG_APP_NAME, REG_SECTION_NAME, _
+        REG_PARENT_DIRECTORY_KEY, "False"), "True", vbTextCompare) = 0)
+    pManualDirectory = txbDirectory.Text
+    UpdateParentDirectoryControls
     Exit Sub
 
 LoadFailed:
@@ -241,6 +281,7 @@ Private Sub SaveCurrentDirectorySetting()
 
     ' LastDirectory adalah default untuk Add berikutnya, bukan directory semua item.
     If isLoadingSettings Then Exit Sub
+    If CBool(chkParentDirectory.Value) Then Exit Sub
     currentDirectory = Trim$(txbDirectory.Text)
     If Len(currentDirectory) > 0 Then
         Set fso = CreateObject("Scripting.FileSystemObject")
@@ -278,6 +319,7 @@ Private Sub cmdBrowse_Click()
 
     Dim selectedPath As String
 
+    If CBool(chkParentDirectory.Value) Then Exit Sub
     selectedPath = SelectExportFolder(Trim$(txbDirectory.Text))
 
     If Len(selectedPath) > 0 And Len(Dir$(selectedPath, vbDirectory)) > 0 Then
@@ -446,6 +488,7 @@ Private Sub cmdSave_Click()
     Set exportSettings = New exportSettings
     exportSettings.LoadFromForm Me
 
+    exportSettings.Directory = exportSettings.ResolveDirectory(doc)
     exportDir = exportSettings.Directory
     If Len(exportDir) = 0 Then
         MsgBox "Pilih folder tujuan export terlebih dahulu.", vbExclamation, "Export Related"
@@ -505,6 +548,9 @@ Private Sub cmdSave_Click()
         firstPageNumber = pageParser.FirstPageInGroup(pageGroup)
         generatedNames(exportIndex - 1) = exportParser.BuildExportFileName(baseName, templateText, exportIndex - 1, firstPageNumber, pageParser.SyncGroupIndex(exportIndex) - 1)
     Next exportIndex
+    txbDirectory.Text = exportSettings.Directory
+    SaveCurrentDirectorySetting
+    SaveParentDirectorySetting
     For exportIndex = 1 To outputCount
         pageGroup = pageGroups(exportIndex)
         firstPageNumber = pageParser.FirstPageInGroup(pageGroup)

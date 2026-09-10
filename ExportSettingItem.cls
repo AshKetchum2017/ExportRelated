@@ -13,6 +13,7 @@ Public Layer1 As Boolean
 Public Layer2 As Boolean
 Public Layer3 As Boolean
 Private pOutputCount As Long
+Private pPageDisplay As String
 
 Private Sub Class_Initialize()
     Set pSettings = New ExportSettings
@@ -27,6 +28,10 @@ Public Property Get OutputCount() As Long
     OutputCount = pOutputCount
 End Property
 
+Public Property Get PageDisplay() As String
+    PageDisplay = pPageDisplay
+End Property
+
 Public Function Clone() As ExportSettingItem
     Dim result As ExportSettingItem
     Set result = New ExportSettingItem
@@ -36,6 +41,7 @@ End Function
 
 Public Sub CopyFrom(ByVal source As ExportSettingItem)
     pSettings.Directory = source.Settings.Directory
+    pSettings.UseParentDirectory = source.Settings.UseParentDirectory
     pSettings.FormatText = source.Settings.FormatText
     pSettings.PageText = source.Settings.PageText
     pSettings.TemplateText = source.Settings.TemplateText
@@ -50,6 +56,7 @@ Public Sub CopyFrom(ByVal source As ExportSettingItem)
     Layer2 = source.Layer2
     Layer3 = source.Layer3
     pOutputCount = source.OutputCount
+    pPageDisplay = source.PageDisplay
 End Sub
 
 ' Registry hanya dibaca sebagai default ketika format belum memiliki snapshot.
@@ -113,7 +120,26 @@ Public Property Get PresetDisplay() As String
 End Property
 
 Public Property Get Summary() As String
-    Summary = UCase$(Mid$(pSettings.FormatText, 2)) & " | " & PresetDisplay & " | " & CStr(pOutputCount)
+    Dim layerText As String
+    Dim layersPerFile As String
+    Dim outputIndex As Long
+    If Layer1 Then layerText = "1"
+    If Layer2 Then
+        If Len(layerText) > 0 Then layerText = layerText & ","
+        layerText = layerText & "2"
+    End If
+    If Layer3 Then
+        If Len(layerText) > 0 Then layerText = layerText & ","
+        layerText = layerText & "3"
+    End If
+    If Layer1 And Layer2 And Layer3 Then layerText = "1-3"
+    If Len(layerText) = 0 Then layerText = "-"
+    For outputIndex = 1 To pOutputCount
+        If outputIndex > 1 Then layersPerFile = layersPerFile & "; "
+        layersPerFile = layersPerFile & layerText
+    Next outputIndex
+    Summary = UCase$(Mid$(pSettings.FormatText, 2)) & " | " & PresetDisplay & _
+        " | File Qty: " & CStr(pOutputCount) & " | Page: " & pPageDisplay & " | Layer: " & layersPerFile
 End Property
 
 ' Export queue wajib memakai snapshot; jangan diam-diam mengambil default registry.
@@ -160,8 +186,10 @@ Public Sub ValidateForQueue()
     Dim groupIndex As Long
     Dim pageIndex As Long
     Dim fso As Object
+    Dim pageDisplayText As String
 
     If SourceDocument Is Nothing Then Err.Raise 5, "ExportSettingItem", "Tidak ada dokumen sumber."
+    pSettings.Directory = pSettings.ResolveDirectory(SourceDocument)
     Set fso = CreateObject("Scripting.FileSystemObject")
     If Not fso.FolderExists(pSettings.Directory) Then Err.Raise 5, "ExportSettingItem", "Pilih folder export yang valid."
     EnsureFormatSettings
@@ -173,6 +201,8 @@ Public Sub ValidateForQueue()
     End If
     For groupIndex = 1 To groups.Count
         group = groups.Item(groupIndex)
+        If groupIndex > 1 Then pageDisplayText = pageDisplayText & "; "
+        pageDisplayText = pageDisplayText & pageParser.DisplayNumberList(group)
         If pSettings.FormatText <> ".pdf" And pageParser.PageGroupCount(group) > 1 Then
             Err.Raise 5, "ExportSettingItem", "Grup multi-page hanya didukung untuk PDF."
         End If
@@ -189,4 +219,5 @@ Public Sub ValidateForQueue()
         End If
     End If
     pOutputCount = groups.Count
+    pPageDisplay = pageDisplayText
 End Sub

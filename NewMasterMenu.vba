@@ -7,6 +7,15 @@ Private pList As MSForms.ListBox
 Private pBinding As Boolean
 Private pExporting As Boolean
 
+Private Sub cmdClearLists_Click()
+    If pExporting Then Exit Sub
+    pBinding = True
+    pList.Clear
+    Set pItems = New Collection
+    pBinding = False
+    SyncSelectedLayers
+End Sub
+
 Private Sub UserForm_Initialize()
     Dim listControl As Object
     Dim operation As String
@@ -164,6 +173,7 @@ Private Sub SyncSelectedLayers()
     cmdRemoveSetting.Enabled = hasSelection And Not pExporting
     cmdModify.Enabled = hasSelection And Not pExporting
     cmdExport.Enabled = (pItems.Count > 0) And Not pExporting
+    cmdClearLists.Enabled = (pItems.Count > 0) And Not pExporting
     cmdAddSetting.Enabled = Not pExporting
     cmdClose.Enabled = Not pExporting
     pList.Enabled = Not pExporting
@@ -172,12 +182,17 @@ End Sub
 
 Private Sub SaveSelectedLayers()
     Dim item As ExportSettingItem
+    Dim rowText As String
     If pBinding Or pExporting Then Exit Sub
     If pList.ListIndex < 0 Then Exit Sub
     Set item = pItems.item(pList.ListIndex + 1)
     item.Layer1 = CBool(chkLayer1.value)
     item.Layer2 = CBool(chkLayer2.value)
     item.Layer3 = CBool(chkLayer3.value)
+    rowText = item.Summary
+    pBinding = True
+    pList.List(pList.ListIndex, 0) = rowText
+    pBinding = False
 End Sub
 
 Private Sub chkLayer1_Click()

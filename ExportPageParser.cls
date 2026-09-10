@@ -69,6 +69,33 @@ Public Function FirstPageInGroup(ByVal pageGroup As Variant) As Long
     FirstPageInGroup = CLng(pageGroup(LBound(pageGroup)))
 End Function
 
+' Hanya untuk tampilan; urutan dan duplikat tetap dipertahankan.
+' Dua angka berurutan tetap memakai koma, tiga atau lebih menjadi range.
+Public Function DisplayNumberList(ByVal values As Variant) As String
+    Dim position As Long
+    Dim lastPosition As Long
+    Dim nextPosition As Long
+    Dim result As String
+    position = LBound(values)
+    lastPosition = UBound(values)
+    Do While position <= lastPosition
+        nextPosition = position
+        Do While nextPosition < lastPosition
+            If CLng(values(nextPosition + 1)) <> CLng(values(nextPosition)) + 1 Then Exit Do
+            nextPosition = nextPosition + 1
+        Loop
+        If Len(result) > 0 Then result = result & ","
+        result = result & CStr(values(position))
+        If nextPosition - position >= 2 Then
+            result = result & "-" & CStr(values(nextPosition))
+        ElseIf nextPosition > position Then
+            result = result & "," & CStr(values(nextPosition))
+        End If
+        position = nextPosition + 1
+    Loop
+    DisplayNumberList = result
+End Function
+
 Public Function PageGroupCount(ByVal pageGroup As Variant) As Long
     PageGroupCount = UBound(pageGroup) - LBound(pageGroup) + 1
 End Function
