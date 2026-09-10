@@ -64,3 +64,9 @@
 2026-09-09 (DXFSettings - checkpoint R2007)
 + Menambahkan DXFSettings, DXFExportSettings, dan DXFSettingsStore untuk versi AutoCAD, unit, bitmap, text, unmapped fills, warna, serta penyimpanan pilihan kurva/tolerance.
 + Menghubungkan DXFSettings ke cmdFormatSettings dan snapshot DXFSettingsXML per item queue; Save/Close mengikuti pola settings existing.
+
+2026-09-10
+[Export Queue - Clear Lists, summary detail, dan ParentDirectory]
++ Menambahkan CheckBox Clear Lists untuk mengosongkan ListBox beserta data queue dan mengembalikan pilihan default Layer 1.
++ Memperluas summary menjadi FORMAT | PRESET | File Qty: n | Page: ... | Layer: ..., dengan pemisah ; antarfile dalam satu item dan layer mengikuti checkbox item.
++ Menambahkan CheckBox Parent Directory untuk memakai folder dokumen sumber aktif/item queue, dengan flag per item dan preferensi registry yang disimpan saat Save.
