@@ -70,3 +70,6 @@
 + Menambahkan CommandButton Clear Lists untuk mengosongkan ListBox beserta data queue dan mengembalikan pilihan default Layer 1.
 + Memperluas summary menjadi FORMAT | PRESET | File Qty: n | Page: ... | Layer: ..., dengan pemisah ; antarfile dalam satu item dan layer mengikuti checkbox item.
 + Menambahkan CheckBox Parent Directory untuk memakai folder dokumen sumber aktif/item queue, dengan flag per item dan preferensi registry yang disimpan saat Save.
+
+[JPEG - koreksi Quality dan Compression]
+~ Memperbaiki pemetaan Quality JPEG ke filter menjadi Compression = 100 - Quality. Quality 100% kini memakai Compression 0.
