@@ -67,6 +67,6 @@
 
 2026-09-10
 [Export Queue - Clear Lists, summary detail, dan ParentDirectory]
-+ Menambahkan CheckBox Clear Lists untuk mengosongkan ListBox beserta data queue dan mengembalikan pilihan default Layer 1.
++ Menambahkan CommandButton Clear Lists untuk mengosongkan ListBox beserta data queue dan mengembalikan pilihan default Layer 1.
 + Memperluas summary menjadi FORMAT | PRESET | File Qty: n | Page: ... | Layer: ..., dengan pemisah ; antarfile dalam satu item dan layer mengikuti checkbox item.
 + Menambahkan CheckBox Parent Directory untuk memakai folder dokumen sumber aktif/item queue, dengan flag per item dan preferensi registry yang disimpan saat Save.
