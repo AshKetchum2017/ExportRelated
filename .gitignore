@@ -6,3 +6,6 @@
 
 # Ignore all files in the Export Related directory except for Changelog.log
 !Changelog.log
+
+# Ignore spesific files in the Export Related directory
+DXFVersionProbe.bas
