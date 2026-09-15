@@ -2,7 +2,8 @@ Option Explicit
 
 ' Satu item queue. Summary bukan sumber data; opsi format berupa snapshot per item.
 Private pSettings As ExportSettings
-Public SourceDocument As Document
+Private pSourceDocument As Document
+Private pSourceDocumentPath As String
 Public PNGSettingsXML As String
 Public JPEGSettingsXML As String
 Public DXFSettingsXML As String
@@ -19,6 +20,119 @@ Private Sub Class_Initialize()
     Set pSettings = New ExportSettings
     Layer1 = True
 End Sub
+
+Public Property Set SourceDocument(ByVal value As Document)
+    Set pSourceDocument = value
+
+    If value Is Nothing Then
+        pSourceDocumentPath = vbNullString
+    Else
+        pSourceDocumentPath = GetDocumentIdentityPath(value)
+    End If
+End Property
+
+Public Property Get SourceDocument() As Document
+    Set SourceDocument = ResolveSourceDocument()
+End Property
+
+Public Property Get SourceDocumentPath() As String
+    SourceDocumentPath = pSourceDocumentPath
+End Property
+
+Public Function ResolveSourceDocument() As Document
+    Dim candidate As Document
+    Dim candidatePath As String
+
+    ' Prioritas pertama:
+    ' gunakan reference asli selama COM object masih hidup.
+    If IsDocumentAlive(pSourceDocument) Then
+
+        candidatePath = GetDocumentIdentityPath(pSourceDocument)
+
+        If Len(candidatePath) > 0 Then
+            pSourceDocumentPath = candidatePath
+        End If
+
+        Set ResolveSourceDocument = pSourceDocument
+        Exit Function
+
+    End If
+
+    ' Reference benar-benar sudah tidak valid.
+    Set pSourceDocument = Nothing
+
+    ' Jika dokumen pernah disimpan, coba rebind berdasarkan path.
+    If Len(pSourceDocumentPath) = 0 Then Exit Function
+
+    For Each candidate In Application.Documents
+
+        candidatePath = GetDocumentIdentityPath(candidate)
+
+        If Len(candidatePath) > 0 Then
+
+            If StrComp(candidatePath, _
+                       pSourceDocumentPath, _
+                       vbTextCompare) = 0 Then
+
+                Set pSourceDocument = candidate
+                pSourceDocumentPath = candidatePath
+
+                Set ResolveSourceDocument = candidate
+                Exit Function
+
+            End If
+
+        End If
+
+    Next candidate
+End Function
+
+Private Function IsDocumentAlive(ByVal doc As Document) As Boolean
+    Dim pageCount As Long
+
+    On Error GoTo DocumentDead
+
+    If doc Is Nothing Then Exit Function
+
+    ' Paksa COM call ke CorelDRAW.
+    ' Jika Document sudah ditutup / invalid,
+    ' akses ini seharusnya melempar error.
+    pageCount = doc.Pages.Count
+
+    IsDocumentAlive = True
+    Exit Function
+
+DocumentDead:
+    IsDocumentAlive = False
+End Function
+
+Private Function GetDocumentIdentityPath(ByVal doc As Document) As String
+    Dim folderPath As String
+    Dim fileName As String
+
+    On Error GoTo NoIdentity
+
+    If doc Is Nothing Then Exit Function
+
+    fileName = doc.FileName
+
+    ' Unsaved document.
+    If Len(fileName) = 0 Then Exit Function
+
+    folderPath = doc.FilePath
+    If Len(folderPath) = 0 Then Exit Function
+
+    If Right$(folderPath, 1) = "\" Or Right$(folderPath, 1) = "/" Then
+        GetDocumentIdentityPath = folderPath & fileName
+    Else
+        GetDocumentIdentityPath = folderPath & "\" & fileName
+    End If
+
+    Exit Function
+
+NoIdentity:
+    GetDocumentIdentityPath = vbNullString
+End Function
 
 Public Property Get Settings() As ExportSettings
     Set Settings = pSettings
@@ -40,21 +154,42 @@ Public Function Clone() As ExportSettingItem
 End Function
 
 Public Sub CopyFrom(ByVal source As ExportSettingItem)
+    Dim resolvedDocument As Document
+
+    If source Is Nothing Then
+        Err.Raise 91, "ExportSettingItem.CopyFrom", _
+            "Source ExportSettingItem tidak tersedia."
+    End If
+
     pSettings.Directory = source.Settings.Directory
     pSettings.UseParentDirectory = source.Settings.UseParentDirectory
     pSettings.FormatText = source.Settings.FormatText
     pSettings.PageText = source.Settings.PageText
     pSettings.TemplateText = source.Settings.TemplateText
-    Set SourceDocument = source.SourceDocument
+
+    ' Pertahankan identity path meskipun Document sedang tidak tersedia.
+    pSourceDocumentPath = source.SourceDocumentPath
+
+    ' Coba ambil/rebind Document sumber.
+    Set resolvedDocument = source.ResolveSourceDocument()
+    Set pSourceDocument = resolvedDocument
+
+    ' Jika Document valid, refresh identity path.
+    If Not resolvedDocument Is Nothing Then
+        pSourceDocumentPath = GetDocumentIdentityPath(resolvedDocument)
+    End If
+
     PNGSettingsXML = source.PNGSettingsXML
     JPEGSettingsXML = source.JPEGSettingsXML
     DXFSettingsXML = source.DXFSettingsXML
     PDFPreset = source.PDFPreset
     PDFPresetDisplay = source.PDFPresetDisplay
     PDFCompatibility = source.PDFCompatibility
+
     Layer1 = source.Layer1
     Layer2 = source.Layer2
     Layer3 = source.Layer3
+
     pOutputCount = source.OutputCount
     pPageDisplay = source.PageDisplay
 End Sub

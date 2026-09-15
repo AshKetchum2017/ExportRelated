@@ -23,6 +23,7 @@ Public Sub BeginQueueEdit(ByVal item As ExportSettingItem)
     Dim errorNumber As Long
     Dim errorSource As String
     Dim errorDescription As String
+    Dim sourceDocument As Document
 
     On Error GoTo BeginFailed
     operation = "Membuat draft item"
@@ -37,8 +38,20 @@ Public Sub BeginQueueEdit(ByVal item As ExportSettingItem)
         operation = "Clone item untuk Modify"
         Set pQueueDraft = item.Clone()
     End If
-    operation = "Memeriksa SourceDocument draft"
-    If pQueueDraft.SourceDocument Is Nothing Then Err.Raise 5, "ExportRelatedSettings", "Tidak ada dokumen sumber."
+
+    operation = "Resolve SourceDocument draft"
+    Set sourceDocument = pQueueDraft.ResolveSourceDocument()
+
+    If sourceDocument Is Nothing Then
+        If Len(pQueueDraft.SourceDocumentPath) > 0 Then
+            Err.Raise 5, "ExportRelatedSettings", _
+                "Dokumen sumber item tidak sedang terbuka." & vbCrLf & _
+                "Source: " & pQueueDraft.SourceDocumentPath
+        Else
+            Err.Raise 5, "ExportRelatedSettings", _
+                "Dokumen sumber item tidak tersedia dan tidak memiliki path yang dapat dipulihkan."
+        End If
+    End If
 
     isLoadingSettings = True
     operation = "Mengisi txbDirectory.Text"
