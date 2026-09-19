@@ -11,8 +11,11 @@ Private pItems As Collection
 Private pList As MSForms.ListBox
 Private pBinding As Boolean
 Private pExporting As Boolean
+Private pMRBehavior As Boolean
+Private pMRExportAction As Boolean
 
 Private Sub cmdClearLists_Click()
+    If pMRBehavior Then Exit Sub
     If pExporting Then Exit Sub
     pBinding = True
     pList.Clear
@@ -64,11 +67,13 @@ InitializeFailed:
 End Sub
 
 Private Sub cmdAddSetting_Click()
+    If pMRBehavior Then Exit Sub
     If pExporting Then Exit Sub
     EditQueueItem -1
 End Sub
 
 Private Sub cmdModify_Click()
+    If pMRBehavior Then Exit Sub
     If pExporting Then Exit Sub
     If pList.ListIndex < 0 Then Exit Sub
     EditQueueItem pList.ListIndex
@@ -135,6 +140,7 @@ EditFailed:
 End Sub
 
 Private Sub cmdRemoveSetting_Click()
+    If pMRBehavior Then Exit Sub
     Dim rowIndex As Long
     If pExporting Then Exit Sub
     rowIndex = pList.ListIndex
@@ -221,9 +227,13 @@ Private Sub cmdExport_Click()
     Dim errorNumber As Long
     Dim errorDescription As String
 
-    If pExporting Then Exit Sub
-    If pItems.Count = 0 Then Exit Sub
     On Error GoTo ExportFailed
+    If pMRBehavior And Not pMRExportAction Then Exit Sub
+    If pExporting Then Err.Raise 5, , "Export sedang berjalan."
+    If pItems.Count = 0 Then
+        If pMRBehavior Then Err.Raise 5, , "Antrean export kosong."
+        Exit Sub
+    End If
     SaveSelectedLayers
     pExporting = True
     SyncSelectedLayers
@@ -239,7 +249,7 @@ Private Sub cmdExport_Click()
             resultMessage = resultMessage & vbCrLf & vbCrLf & "Peringatan cleanup:" & vbCrLf & warningMessage
             messageStyle = vbExclamation
         End If
-        MsgBox resultMessage, messageStyle, "Export Queue"
+        If Not pMRBehavior Or Len(warningMessage) > 0 Then MsgBox resultMessage, messageStyle, "Export Queue"
     Else
         If runner.FailedItemIndex > 0 And runner.FailedItemIndex <= pItems.Count Then
             pList.ListIndex = runner.FailedItemIndex - 1
@@ -250,6 +260,11 @@ Private Sub cmdExport_Click()
         resultMessage = resultMessage & vbCrLf & "Error " & CStr(runner.LastErrorNumber) & ": " & runner.LastErrorDescription
         If Len(warningMessage) > 0 Then
             resultMessage = resultMessage & vbCrLf & vbCrLf & "Peringatan cleanup:" & vbCrLf & warningMessage
+        End If
+        If pMRBehavior Then
+            errorNumber = runner.LastErrorNumber
+            If errorNumber = 0 Then errorNumber = 5
+            Err.Raise errorNumber, "ExportQueueRunner", resultMessage
         End If
         MsgBox resultMessage, vbExclamation, "Export Queue"
     End If
@@ -262,6 +277,7 @@ ExportFailed:
     On Error Resume Next
     SyncSelectedLayers
     On Error GoTo 0
+    If pMRBehavior Then Err.Raise errorNumber, "ExportRelatedMenu.cmdExport", errorDescription
     MsgBox "Gagal menjalankan export queue (" & CStr(errorNumber) & "): " & errorDescription, vbExclamation, "Export Queue"
 End Sub
 
@@ -271,7 +287,76 @@ Private Sub cmdClose_Click()
 End Sub
 
 Private Sub UserForm_QueryClose(Cancel As Integer, CloseMode As Integer)
-    If pExporting Then Cancel = 1
+    If pExporting Then
+        Cancel = 1
+    ElseIf pMRBehavior Then
+        If Not pMRObserver Is Nothing Then CallByName pMRObserver, "MainClosing", VbMethod
+    End If
+End Sub
+
+Public Sub MRSetBehaviorMode(ByVal active As Boolean)
+    pMRBehavior = active
+End Sub
+
+Public Function MRCreateBehaviorEditor() As Object
+    Dim editor As ExportRelatedSettings, number As Long, description As String
+    On Error GoTo Failed
+    If pExporting Then Err.Raise 5, , "Export sedang berjalan."
+    Set editor = New ExportRelatedSettings
+    editor.BeginQueueEdit Nothing
+    Set MRCreateBehaviorEditor = editor
+    Exit Function
+Failed:
+    number = Err.Number: description = Err.Description
+    On Error Resume Next
+    If Not editor Is Nothing Then Unload editor
+    On Error GoTo 0
+    Err.Raise number, "ExportRelatedMenu.MRCreateBehaviorEditor", description
+End Function
+
+Public Sub MRCommitBehaviorItem(ByVal result As ExportSettingItem)
+    If result Is Nothing Then Err.Raise 5, , "Hasil settings kosong."
+    result.ValidateForQueue
+    pItems.Add result
+    pList.AddItem result.Summary
+    pList.ListIndex = pItems.Count - 1
+    SyncSelectedLayers
+End Sub
+
+Public Sub MRBehaviorValue(ByVal target As String, ByVal value As Variant)
+    If LCase$(target) = "lbxsettinglists.index" Then
+        If value < 1 Or value > pItems.Count Or Fix(value) <> value Then _
+            Err.Raise 5, , "Index " & CStr(value) & " tidak tersedia; jumlah item " & CStr(pItems.Count) & "."
+        pList.ListIndex = CLng(value) - 1
+        SyncSelectedLayers
+        Exit Sub
+    End If
+    If pList.ListIndex < 0 Then Err.Raise 5, , "Pilih lbxSettingLists.Index sebelum mengubah layer."
+    Select Case LCase$(target)
+        Case "chklayer1": chkLayer1.Value = CBool(value)
+        Case "chklayer2": chkLayer2.Value = CBool(value)
+        Case "chklayer3": chkLayer3.Value = CBool(value)
+        Case Else: Err.Raise 5, , "Target menu tidak terdaftar: " & target
+    End Select
+    SaveSelectedLayers
+End Sub
+
+Public Sub MRBehaviorExport()
+    Dim number As Long, description As String
+    On Error GoTo Failed
+    pMRExportAction = True
+    cmdExport_Click
+    pMRExportAction = False
+    Exit Sub
+Failed:
+    number = Err.Number: description = Err.Description
+    pMRExportAction = False
+    Err.Raise number, "ExportRelatedMenu.MRBehaviorExport", description
+End Sub
+
+Public Sub MRBehaviorClose()
+    If pExporting Then Err.Raise 5, , "Tidak dapat menutup menu saat export."
+    cmdClose_Click
 End Sub
 
 ' Called only by MRTargetBridge; normal menu entry points remain unchanged.

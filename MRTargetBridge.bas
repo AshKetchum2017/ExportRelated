@@ -40,3 +40,10 @@ Failed:
     On Error GoTo 0
     Err.Raise errorNumber, "MRTargetBridge.OpenMacro", operation & ": " & errorDescription
 End Function
+
+' Export Related behavior is parsed again in this GMS, never evaluated as VBA.
+Public Function RunBehavior(ByVal script As String, ByVal observer As Object, ByVal token As String) As Boolean
+    Dim session As New ERBehaviorSession
+    session.Start script, observer, token
+    RunBehavior = True
+End Function

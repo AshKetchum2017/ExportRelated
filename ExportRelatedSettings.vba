@@ -16,6 +16,8 @@ Private isLoadingSettings As Boolean
 Private pQueueDraft As ExportSettingItem
 Private pQueueResult As ExportSettingItem
 Private pManualDirectory As String
+Private pMRBehaviorObserver As Object
+Private pMRAction As Boolean
 
 ' Tanpa pemanggilan ini, cmdSave tetap menjalankan single export existing.
 Public Sub BeginQueueEdit(ByVal item As ExportSettingItem)
@@ -96,10 +98,17 @@ Private Sub SaveQueueItem()
     SaveParentDirectorySetting
     Set pQueueResult = pQueueDraft.Clone()
     Me.Hide
+    If Not pMRBehaviorObserver Is Nothing And Not pMRAction Then _
+        CallByName pMRBehaviorObserver, "EditorFinished", VbMethod, True
     Exit Sub
 SaveFailed:
     errorNumber = Err.Number
     errorDescription = Err.Description
+    If Not pMRBehaviorObserver Is Nothing Then
+        If pMRAction Then Err.Raise errorNumber, "ExportRelatedSettings.cmdSave", errorDescription
+        CallByName pMRBehaviorObserver, "EditorFailed", VbMethod, errorNumber, errorDescription
+        Exit Sub
+    End If
     MsgBox "Gagal menyimpan item export (" & CStr(errorNumber) & "): " & errorDescription, vbExclamation, "Export Queue"
 End Sub
 
@@ -137,6 +146,7 @@ Private Sub UserForm_QueryClose(Cancel As Integer, CloseMode As Integer)
         Cancel = True
         Set pQueueResult = Nothing
         Me.Hide
+        If Not pMRBehaviorObserver Is Nothing Then CallByName pMRBehaviorObserver, "EditorFinished", VbMethod, False
     End If
 End Sub
 
@@ -451,10 +461,54 @@ Private Sub cmdCancel_Click()
     If Not pQueueDraft Is Nothing Then
         Set pQueueResult = Nothing
         Me.Hide
+        If Not pMRBehaviorObserver Is Nothing And Not pMRAction Then _
+            CallByName pMRBehaviorObserver, "EditorFinished", VbMethod, False
         Exit Sub
     End If
     Unload Me
     
+End Sub
+
+Public Sub MRSetBehaviorObserver(ByVal observer As Object)
+    Set pMRBehaviorObserver = observer
+End Sub
+
+Public Sub MRDetachBehavior()
+    Set pMRBehaviorObserver = Nothing
+End Sub
+
+Public Sub MRBehaviorValue(ByVal target As String, ByVal value As Variant)
+    Select Case LCase$(target)
+        Case "txbname": txbName.Value = CStr(value)
+        Case "txbpage": txbPage.Value = CStr(value)
+        Case "cmbexformat": cmbExFormat.Value = LCase$(CStr(value))
+        Case "chkparentdirectory"
+            chkParentDirectory.Value = CBool(value)
+            UpdateParentDirectoryControls
+        Case "txbdirectory"
+            If CBool(chkParentDirectory.Value) Then Err.Raise 5, , "Nonaktifkan chkParentDirectory sebelum mengisi txbDirectory."
+            txbDirectory.Value = CStr(value)
+            pManualDirectory = CStr(value)
+        Case Else: Err.Raise 5, , "Target settings tidak terdaftar: " & target
+    End Select
+End Sub
+
+Public Sub MRBehaviorAction(ByVal action As String)
+    Dim number As Long, description As String
+    On Error GoTo Failed
+    If pQueueDraft Is Nothing Then Err.Raise 5, , "Settings belum dibuka dalam konteks antrean."
+    pMRAction = True
+    Select Case LCase$(action)
+        Case "cmdsave": cmdSave_Click
+        Case "cmdcancel": cmdCancel_Click
+        Case Else: Err.Raise 5, , "Action settings tidak terdaftar: " & action
+    End Select
+    pMRAction = False
+    Exit Sub
+Failed:
+    number = Err.Number: description = Err.Description
+    pMRAction = False
+    Err.Raise number, "ExportRelatedSettings.MRBehaviorAction", description
 End Sub
 
 Private Sub cmdSave_Click()
