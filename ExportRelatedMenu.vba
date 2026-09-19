@@ -229,7 +229,7 @@ Private Sub cmdExport_Click()
 
     On Error GoTo ExportFailed
     If pMRBehavior And Not pMRExportAction Then Exit Sub
-    If pExporting Then Err.Raise 5, , "Export sedang berjalan."
+    If pExporting Then Exit Sub
     If pItems.Count = 0 Then
         If pMRBehavior Then Err.Raise 5, , "Antrean export kosong."
         Exit Sub
@@ -344,6 +344,7 @@ End Sub
 Public Sub MRBehaviorExport()
     Dim number As Long, description As String
     On Error GoTo Failed
+    If pExporting Then Err.Raise 5, , "Export sedang berjalan."
     pMRExportAction = True
     cmdExport_Click
     pMRExportAction = False

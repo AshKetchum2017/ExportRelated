@@ -43,7 +43,21 @@ End Function
 
 ' Export Related behavior is parsed again in this GMS, never evaluated as VBA.
 Public Function RunBehavior(ByVal script As String, ByVal observer As Object, ByVal token As String) As Boolean
-    Dim session As New ERBehaviorSession
+    Dim session As ERBehaviorSession
+    Dim number As Long, source As String, description As String
+    On Error GoTo Failed
+    CallByName observer, "BehaviorBridgeEntered", VbMethod, token
+    Set session = New ERBehaviorSession
     session.Start script, observer, token
+    CallByName observer, "BehaviorBridgeFinished", VbMethod, token, 0&, vbNullString
     RunBehavior = True
+    Exit Function
+Failed:
+    number = Err.Number: source = Err.Source: description = Err.Description
+    ' Preserve the original failure even if host dispatch suppresses Err.Raise.
+    On Error Resume Next
+    CallByName observer, "BehaviorBridgeFinished", VbMethod, token, number, _
+        "Source asli: " & source & vbCrLf & description
+    On Error GoTo 0
+    Err.Raise number, "MRTargetBridge.RunBehavior", "Source asli: " & source & vbCrLf & description
 End Function
