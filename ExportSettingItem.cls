@@ -256,8 +256,7 @@ End Property
 
 Public Property Get Summary() As String
     Dim layerText As String
-    Dim layersPerFile As String
-    Dim outputIndex As Long
+
     If Layer1 Then layerText = "1"
     If Layer2 Then
         If Len(layerText) > 0 Then layerText = layerText & ","
@@ -269,12 +268,11 @@ Public Property Get Summary() As String
     End If
     If Layer1 And Layer2 And Layer3 Then layerText = "1-3"
     If Len(layerText) = 0 Then layerText = "-"
-    For outputIndex = 1 To pOutputCount
-        If outputIndex > 1 Then layersPerFile = layersPerFile & "; "
-        layersPerFile = layersPerFile & layerText
-    Next outputIndex
+
     Summary = UCase$(Mid$(pSettings.FormatText, 2)) & " | " & PresetDisplay & _
-        " | File Qty: " & CStr(pOutputCount) & " | Page: " & pPageDisplay & " | Layer: " & layersPerFile
+        " | File Qty: " & CStr(pOutputCount) & _
+        " | Page: " & pPageDisplay & _
+        " | Layer: " & layerText
 End Property
 
 ' Export queue wajib memakai snapshot; jangan diam-diam mengambil default registry.
