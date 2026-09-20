@@ -12,14 +12,13 @@ Private pMainClosing As Boolean
 Private pDefaults As Object
 
 Public Sub Start(ByVal script As String, ByVal observer As Object, ByVal token As String)
-    Dim parser As New MRBehaviorParser, blocks As Collection, block As MRBehaviorBlock
+    Dim contract As New ERBehaviorContract, block As MRBehaviorBlock
     Dim ins As MRBehaviorInstruction, existing As Object, value As Variant
     Dim operation As String, number As Long, description As String
     On Error GoTo Failed
-    Set blocks = parser.Parse(script, Array("ExportRelated"))
-    Set block = blocks(1)
+    Set block = contract.Validate(script)
     operation = "Membaca snapshot Default registry"
-    SnapshotDefaults block, parser
+    SnapshotDefaults block, contract
     operation = "Memeriksa form yang sudah terbuka"
     For Each existing In VBA.UserForms
         If TypeName(existing) = "ExportRelatedMenu" Or TypeName(existing) = "ExportRelatedSettings" Then _
@@ -71,7 +70,7 @@ Failed:
     Err.Raise number, "ERBehaviorSession", operation & vbCrLf & description
 End Sub
 
-Private Sub SnapshotDefaults(ByVal block As MRBehaviorBlock, ByVal parser As MRBehaviorParser)
+Private Sub SnapshotDefaults(ByVal block As MRBehaviorBlock, ByVal contract As ERBehaviorContract)
     Dim ins As MRBehaviorInstruction, key As String, raw As String, target As String
     Dim fso As Object
     Set pDefaults = CreateObject("Scripting.Dictionary")
@@ -80,7 +79,7 @@ Private Sub SnapshotDefaults(ByVal block As MRBehaviorBlock, ByVal parser As MRB
         If ins.Kind = "default" Then
             target = LCase$(ins.Target)
             If Not pDefaults.Exists(target) Then
-                key = parser.DefaultKey(ins.Target)
+                key = contract.DefaultKey(ins.Target)
                 raw = GetSetting("RinCorelMacros", "ExportRelatedMacro", key, ChrW(1))
                 If raw = ChrW(1) Then Err.Raise 5, , "Default registry belum tersedia: " & key
                 Select Case target
@@ -200,4 +199,3 @@ Private Sub AbortSession()
     Set pMenu = Nothing
     Set pObserver = Nothing
 End Sub
-

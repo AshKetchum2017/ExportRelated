@@ -41,6 +41,26 @@ Failed:
     Err.Raise errorNumber, "MRTargetBridge.OpenMacro", operation & ": " & errorDescription
 End Function
 
+' Pure semantic preflight: no form/session, registry reads, or document access.
+Public Function ValidateBehavior(ByVal script As String, ByVal observer As Object, ByVal token As String) As Boolean
+    Dim contract As ERBehaviorContract, block As MRBehaviorBlock
+    Dim number As Long, source As String, description As String
+    On Error GoTo Failed
+    CallByName observer, "BehaviorBridgeEntered", VbMethod, token
+    Set contract = New ERBehaviorContract
+    Set block = contract.Validate(script)
+    CallByName observer, "BehaviorBridgeFinished", VbMethod, token, 0&, vbNullString
+    ValidateBehavior = True
+    Exit Function
+Failed:
+    number = Err.Number: source = Err.Source: description = Err.Description
+    On Error Resume Next
+    CallByName observer, "BehaviorBridgeFinished", VbMethod, token, number, _
+        "Source asli: " & source & vbCrLf & description
+    On Error GoTo 0
+    Err.Raise number, "MRTargetBridge.ValidateBehavior", "Source asli: " & source & vbCrLf & description
+End Function
+
 ' Export Related behavior is parsed again in this GMS, never evaluated as VBA.
 Public Function RunBehavior(ByVal script As String, ByVal observer As Object, ByVal token As String) As Boolean
     Dim session As ERBehaviorSession
