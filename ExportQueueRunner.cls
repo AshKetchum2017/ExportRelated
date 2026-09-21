@@ -5,6 +5,7 @@ Private pLastErrorDescription As String
 Private pFailedItemIndex As Long
 Private pCompletedFiles As Long
 Private pTempFiles As ExportTempFiles
+Private pTokenWarnings As String
 
 Public Property Get LastErrorNumber() As Long
     LastErrorNumber = pLastErrorNumber
@@ -23,7 +24,14 @@ Public Property Get CompletedFiles() As Long
 End Property
 
 Public Property Get WarningDescription() As String
-    If Not pTempFiles Is Nothing Then WarningDescription = pTempFiles.WarningDescription
+    Dim result As String, cleanup As String
+    result = pTokenWarnings
+    If Not pTempFiles Is Nothing Then cleanup = pTempFiles.WarningDescription
+    If Len(cleanup) > 0 Then
+        If Len(result) > 0 Then result = result & vbCrLf
+        result = result & "Cleanup: " & cleanup
+    End If
+    WarningDescription = result
 End Property
 
 Public Function Run(ByVal items As Collection) As Boolean
@@ -46,6 +54,7 @@ Public Function Run(ByVal items As Collection) As Boolean
     pLastErrorDescription = vbNullString
     pFailedItemIndex = 0
     pCompletedFiles = 0
+    pTokenWarnings = vbNullString
     Set pTempFiles = New ExportTempFiles
     Set originalDocument = ActiveDocument
     Set prepared = New Collection
@@ -133,32 +142,27 @@ Private Sub ValidateSnapshot(ByVal item As ExportSettingItem)
 End Sub
 
 Private Function BuildPaths(ByVal item As ExportSettingItem, ByRef groups As Collection) As Variant
-    Dim pageParser As ExportPageParser
+    Dim tokenPlan As ExportTokenPlan
     Dim nameParser As ExportTemplateParser
     Dim fso As Object
     Dim names() As String
     Dim paths() As String
-    Dim baseName As String
     Dim outputName As String
-    Dim group As Variant
     Dim groupIndex As Long
-    Dim firstPage As Long
 
-    Set pageParser = New ExportPageParser
+    Set tokenPlan = New ExportTokenPlan
     Set nameParser = New ExportTemplateParser
     Set fso = CreateObject("Scripting.FileSystemObject")
-    If Not pageParser.ResolvePageGroups(item.SourceDocument, item.Settings.PageText, groups) Then
-        Err.Raise 5, "ExportQueueRunner", "Grup page tidak valid."
+    tokenPlan.Prepare item.SourceDocument, item.Settings.PageText, item.Settings.TemplateText
+    Set groups = tokenPlan.Groups
+    If Len(tokenPlan.WarningDescription) > 0 Then
+        If Len(pTokenWarnings) > 0 Then pTokenWarnings = pTokenWarnings & vbCrLf
+        pTokenWarnings = pTokenWarnings & "Item " & CStr(pFailedItemIndex) & ": " & tokenPlan.WarningDescription
     End If
-    baseName = nameParser.RemoveDocumentExtension(item.SourceDocument.Name)
-    If Len(baseName) = 0 Then baseName = "Export"
     ReDim names(0 To groups.Count - 1)
     ReDim paths(0 To groups.Count - 1)
     For groupIndex = 1 To groups.Count
-        group = groups.Item(groupIndex)
-        firstPage = pageParser.FirstPageInGroup(group)
-        names(groupIndex - 1) = nameParser.BuildExportFileName(baseName, item.Settings.TemplateText, _
-            groupIndex - 1, firstPage, pageParser.SyncGroupIndex(groupIndex) - 1)
+        names(groupIndex - 1) = tokenPlan.NameAt(groupIndex)
     Next groupIndex
     For groupIndex = 1 To groups.Count
         outputName = nameParser.BuildUniqueExportName(names, groups.Count, groupIndex)

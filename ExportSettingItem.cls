@@ -313,7 +313,7 @@ End Function
 ' Hitung file memakai parser existing, bukan menghitung page atau memecah summary.
 Public Sub ValidateForQueue()
     Dim pageParser As ExportPageParser
-    Dim nameParser As ExportTemplateParser
+    Dim tokenPlan As ExportTokenPlan
     Dim groups As Collection
     Dim group As Variant
     Dim groupIndex As Long
@@ -329,9 +329,9 @@ Public Sub ValidateForQueue()
     ' Input kosong menunjuk page saat item disimpan, bukan page aktif saat export nanti.
     If Len(pSettings.PageText) = 0 Then pSettings.PageText = CStr(SourceDocument.ActivePage.Index)
     Set pageParser = New ExportPageParser
-    If Not pageParser.ResolvePageGroups(SourceDocument, pSettings.PageText, groups) Then
-        Err.Raise 5, "ExportSettingItem", "Format page tidak valid atau kosong."
-    End If
+    Set tokenPlan = New ExportTokenPlan
+    tokenPlan.Prepare SourceDocument, pSettings.PageText, pSettings.TemplateText
+    Set groups = tokenPlan.Groups
     For groupIndex = 1 To groups.Count
         group = groups.Item(groupIndex)
         If groupIndex > 1 Then pageDisplayText = pageDisplayText & "; "
@@ -345,12 +345,6 @@ Public Sub ValidateForQueue()
             End If
         Next pageIndex
     Next groupIndex
-    Set nameParser = New ExportTemplateParser
-    If Len(pSettings.TemplateText) > 0 Then
-        If Not nameParser.ValidateNameTemplate(pSettings.TemplateText, groups.Count, pageParser.SyncGroupCount) Then
-            Err.Raise 5, "ExportSettingItem", "Jumlah value nama tidak sesuai dengan grup page."
-        End If
-    End If
     pOutputCount = groups.Count
     pPageDisplay = pageDisplayText
 End Sub

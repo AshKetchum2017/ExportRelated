@@ -5,7 +5,8 @@ Public Function ParseReplaceTemplate(ByVal templateText As String, _
                                      ByRef replaceValue As String) As Boolean
     Dim markerPos As Long
 
-    markerPos = InStr(1, templateText, "/*", vbTextCompare)
+    Dim dynamicTokens As New ExportDynamicTokens
+    markerPos = dynamicTokens.PlainMarkerPosition(templateText)
     If markerPos = 0 Then
         ParseReplaceTemplate = False
         Exit Function
@@ -100,12 +101,12 @@ Public Function BuildExportFileName(ByVal baseName As String, _
 
     If ParseSequenceTemplate(templateValue, replaceFind, commandText) Then
         replaceValue = BuildCommandReplacement(replaceFind, commandText, pageIndex, pageNumber, syncGroupIndex)
-        BuildExportFileName = Replace$(baseName, RemoveReplacementBraces(replaceFind), replaceValue, 1, -1, vbTextCompare)
+        BuildExportFileName = ReplaceTarget(baseName, replaceFind, replaceValue)
         Exit Function
     End If
 
     If ParseReplaceTemplate(templateValue, replaceFind, replaceValue) Then
-        BuildExportFileName = Replace$(baseName, RemoveReplacementBraces(replaceFind), RemoveReplacementBraces(replaceValue), 1, -1, vbTextCompare)
+        BuildExportFileName = ReplaceTarget(baseName, replaceFind, RemoveReplacementBraces(replaceValue))
         Exit Function
     End If
 
@@ -194,8 +195,9 @@ Public Function ValidateNameTemplate(ByVal templateText As String, _
     End If
 End Function
 
-Private Function TryParseAffix(ByVal templateText As String, ByRef values() As String, _
-                               ByRef isPrefix As Boolean, ByRef usesSync As Boolean) As Boolean
+Public Function TryParseAffix(ByVal templateText As String, ByRef values() As String, _
+                              ByRef isPrefix As Boolean, ByRef usesSync As Boolean, _
+                              Optional ByVal keepBraces As Boolean = False) As Boolean
     Dim firstValue As String
     Dim hasPrefix As Boolean
     Dim hasSuffix As Boolean
@@ -203,9 +205,10 @@ Private Function TryParseAffix(ByVal templateText As String, ByRef values() As S
     Dim position As Long
     Dim valueIndex As Long
     Dim markerIndex As Long
+    Dim tokens As New ExportDynamicTokens
 
     ' Gabungkan replacement dan affix melalui |; __ di dalam replacement tetap teks.
-    If InStr(1, templateText, "/*", vbBinaryCompare) > 0 Then Exit Function
+    If tokens.PlainMarkerPosition(templateText) > 0 Then Exit Function
     usesSync = HasNameSyncDelimiter(templateText)
     If usesSync Then
         values = SplitSyncNameValues(templateText)
@@ -245,14 +248,16 @@ Private Function TryParseAffix(ByVal templateText As String, ByRef values() As S
             position = position + 1
         Loop
     End If
-    values(markerIndex) = RemoveReplacementBraces(firstValue)
+    values(markerIndex) = firstValue
+    If Not keepBraces Then values(markerIndex) = RemoveReplacementBraces(values(markerIndex))
     For valueIndex = 0 To UBound(values)
         If Len(Trim$(RemoveReplacementBraces(values(valueIndex)))) = 0 Then Err.Raise 5, "ExportTemplateParser", "Nilai prefix/suffix tidak boleh kosong."
         If valueIndex <> markerIndex Then
+            If Not keepBraces Then values(valueIndex) = RemoveReplacementBraces(values(valueIndex))
             If isPrefix Then
-                values(valueIndex) = RemoveReplacementBraces(values(valueIndex)) & literalUnderscores
+                values(valueIndex) = values(valueIndex) & literalUnderscores
             Else
-                values(valueIndex) = literalUnderscores & RemoveReplacementBraces(values(valueIndex))
+                values(valueIndex) = literalUnderscores & values(valueIndex)
             End If
         End If
     Next valueIndex
@@ -464,7 +469,7 @@ Private Function FindFirstNumberRangeOutsideBraces(ByVal sourceText As String, B
     Next position
 End Function
 
-Private Function SplitNameValues(ByVal commandText As String) As String()
+Public Function SplitNameValues(ByVal commandText As String) As String()
     Dim values() As String
     Dim valueCount As Long
     Dim position As Long
@@ -494,7 +499,7 @@ Private Function SplitNameValues(ByVal commandText As String) As String()
     SplitNameValues = values
 End Function
 
-Private Function SplitSyncNameValues(ByVal commandText As String, _
+Public Function SplitSyncNameValues(ByVal commandText As String, _
                                      Optional ByVal delimiter As String = ";") As String()
     Dim values() As String
     Dim valueCount As Long
@@ -565,7 +570,14 @@ Private Function UsesBracedReplacement(ByVal commandText As String) As Boolean
 End Function
 
 Private Function RemoveReplacementBraces(ByVal valueText As String) As String
+    valueText = Replace$(valueText, "{~}", ChrW(1))
     RemoveReplacementBraces = Replace$(Replace$(valueText, "{", vbNullString), "}", vbNullString)
+    RemoveReplacementBraces = Replace$(RemoveReplacementBraces, ChrW(1), "{~}")
+End Function
+
+Private Function ReplaceTarget(ByVal source As String, ByVal target As String, ByVal value As String) As String
+    Dim tokens As New ExportDynamicTokens
+    ReplaceTarget = tokens.ReplaceTarget(source, RemoveReplacementBraces(target), value)
 End Function
 
 Private Function FindFirstNumberRange(ByVal sourceText As String, ByRef rangeStart As Long, ByRef rangeEnd As Long) As Boolean

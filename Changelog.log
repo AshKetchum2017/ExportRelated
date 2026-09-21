@@ -1,3 +1,4 @@
+------------------------------------------------------------------------------------------------------------------------------------------------------
 2026-08-30
 + Menambahkan Export Related untuk export `.pdf`, `.dxf`, dan `.png`.
 + Menambahkan template nama file dengan token `/*` dan `(/*...):`.
@@ -6,6 +7,7 @@
 ~ Pemilihan folder dibuat kompatibel dengan CorelDRAW tanpa Office FileDialog.
 ~ Popup error palsu dikurangi ketika file sebenarnya berhasil dibuat.
 
+------------------------------------------------------------------------------------------------------------------------------------------------------
 2026-09-03
 + Menambahkan grouping `txtPage`: input tanpa kurung menjadi satu file PDF, input dengan kurung menjadi beberapa file.
 + Menyempurnakan token `txtName` untuk replacement, brace, sequence angka, dan validasi jumlah output.
@@ -13,6 +15,7 @@
 ~ Export PDF dipindah ke `PublishToPDF`.
 ~ Penyempurnaan `.png` dan `.dxf` ditunda ke sesi berikutnya.
 
+------------------------------------------------------------------------------------------------------------------------------------------------------
 2026-09-04
 + Menambahkan UF pengaturan PDF preset dari `cmdFormatSettings`.
 + Menyimpan pilihan PDF preset dan compatibility khusus macro.
@@ -20,6 +23,7 @@
 + Menambahkan token sync `;` untuk menyelaraskan `txtName` dengan grup output `txtPage`.
 ~ `cmdAddPreset` dan `cmdRemovePreset` tetap dinonaktifkan sampai pengaturan preset lanjutan siap.
 
+------------------------------------------------------------------------------------------------------------------------------------------------------
 2026-09-05
 + Mengganti UF pengaturan PDF menjadi `PDFSettings`.
 + Menambahkan `PNGSettings` untuk preset XML, mode warna, transparency, matte, antialias, embed profile, interlace, crop, dan resolusi.
@@ -27,6 +31,7 @@
 + Menyimpan snapshot setting PNG dan menggunakannya saat export `.png`.
 + Format export terakhir kini dipulihkan otomatis saat UF dibuka.
 
+------------------------------------------------------------------------------------------------------------------------------------------------------
 2026-09-07
 [JPEG dan helper bitmap bersama]
 + Menambahkan dukungan export `.jpg`.
@@ -43,6 +48,7 @@
 ~ Alur single export tetap dipertahankan saat form dibuka tanpa mode queue.
 ~ Tombol Export queue masih skeleton dan dilanjutkan pada sesi berikutnya.
 
+------------------------------------------------------------------------------------------------------------------------------------------------------
 2026-09-08
 [Export Queue selesai]
 + Mengaktifkan export queue multi-item dengan directory, format, page, nama, preset/setting format, dan layer per item.
@@ -59,12 +65,14 @@
 + Menambahkan prefix `String__`, suffix `__String`, delimiter output `,`, dan sync group `;`.
 + Menambahkan pipeline `|` agar replacement, template langsung, prefix, dan suffix bisa diproses berurutan.
 
+------------------------------------------------------------------------------------------------------------------------------------------------------
 2026-09-09
 [DXFSettings - checkpoint R2007]
 + Menambahkan DXFSettings untuk versi AutoCAD, unit, bitmap, text, unmapped fills, warna, kurva, dan tolerance.
 + Menghubungkan DXFSettings ke `cmdFormatSettings` dan snapshot DXF per item queue.
 ~ Alur R2007 berhasil dipakai sebagai checkpoint sementara; dukungan versi DXF lain masih perlu validasi lanjutan.
 
+------------------------------------------------------------------------------------------------------------------------------------------------------
 2026-09-10
 [Export Queue - Clear Lists, summary detail, dan ParentDirectory]
 + Menambahkan Clear Lists untuk mengosongkan queue dan mengembalikan default Layer 1.
@@ -73,3 +81,15 @@
 
 [JPEG - koreksi Quality dan Compression]
 ~ Memperbaiki pemetaan Quality JPEG ke filter: Quality 100% kini memakai Compression 0.
+
+------------------------------------------------------------------------------------------------------------------------------------------------------
+2026-09-18
+~ Memperbaiki ringkasan Export Jobs agar daftar layer tidak berulang mengikuti jumlah page.
+
+------------------------------------------------------------------------------------------------------------------------------------------------------
+2026-09-21
+[Token dinamis nama/page dan integrasi MacroRunner]
++ Menambahkan token dinamis /*a, /*n, dan /*an untuk nama file, serta /*n untuk page, termasuk batas jumlah -n.
++ Menambahkan dukungan blok nama berurutan, target alternatif &*, dan preservasi {~}.
+~ Queue, single export, dan alur MacroRunner kini memakai rencana nama/page yang sama agar hasil ekspor lebih konsisten.
+~ Page dinamis yang tidak cukup tetap menghasilkan output yang tersedia dengan peringatan; range page eksplisit yang tidak valid tetap menghentikan ekspor sebelum file dibuat.

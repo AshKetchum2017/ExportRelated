@@ -3,6 +3,12 @@ Option Explicit
 Private pSyncGroupIndexes As Collection
 Private pCurrentSyncGroupIndex As Long
 Private pSyncGroupCount As Long
+Private pPageCount As Long
+Private pShortfall As Boolean
+
+Public Property Get Shortfall() As Boolean
+    Shortfall = pShortfall
+End Property
 
 Public Function ResolvePageGroups(ByVal doc As Document, ByVal pageText As String, ByRef pageGroups As Collection) As Boolean
     Dim inputText As String
@@ -11,6 +17,8 @@ Public Function ResolvePageGroups(ByVal doc As Document, ByVal pageText As Strin
     Set pSyncGroupIndexes = New Collection
     pCurrentSyncGroupIndex = 1
     pSyncGroupCount = 1
+    pPageCount = doc.Pages.Count
+    pShortfall = False
 
     inputText = Trim$(pageText)
 
@@ -198,6 +206,7 @@ Private Sub AddGroupedPages(ByRef pageGroups As Collection, ByVal groupText As S
 
     AddPagesToCollection pages, groupText
     If pages.Count = 0 Then
+        If InStr(groupText, "/*n") > 0 Then Exit Sub
         Err.Raise 5, , "Token grup txbPage kosong."
     End If
 
@@ -216,6 +225,7 @@ Private Sub AddSeparatePages(ByRef pageGroups As Collection, ByVal tokenText As 
 
     AddPagesToCollection pages, tokenText
     If pages.Count = 0 Then
+        If InStr(tokenText, "/*n") > 0 Then Exit Sub
         Err.Raise 5, , "Token txbPage kosong."
     End If
 
@@ -231,6 +241,7 @@ Private Sub AddUngroupedPages(ByRef pageGroups As Collection, ByVal tokenText As
 
     AddPagesToCollection pages, tokenText
     If pages.Count = 0 Then
+        If InStr(tokenText, "/*n") > 0 Then Exit Sub
         Err.Raise 5, , "Token txbPage kosong."
     End If
 
@@ -352,9 +363,36 @@ Private Sub AddPageToken(ByRef pages As Collection, ByVal tokenText As String)
     Dim startPage As Long
     Dim endPage As Long
     Dim pageNumber As Long
+    Dim marker As Long, countText As String, requested As Long
+    Dim tokens As New ExportDynamicTokens
 
     If Len(tokenText) = 0 Then
         Err.Raise 5, , "Format txbPage tidak valid."
+    End If
+
+    marker = InStr(1, tokenText, "/*", vbBinaryCompare)
+    If marker > 0 Then
+        If Mid$(tokenText, marker, 3) <> "/*n" Then Err.Raise 5, "ExportPageParser", "txbPage hanya menerima /*n."
+        startPage = tokens.PositiveLong(Left$(tokenText, marker - 1), "Page awal")
+        countText = Mid$(tokenText, marker + 3)
+        endPage = pPageCount
+        If Len(countText) > 0 Then
+            If Left$(countText, 1) <> "-" Then Err.Raise 5, "ExportPageParser", "Token page dinamis tidak valid: " & tokenText
+            requested = tokens.PositiveLong(Mid$(countText, 2), "Batas page")
+            If CDbl(startPage) + requested - 1 > pPageCount Then
+                pShortfall = True
+            Else
+                endPage = startPage + requested - 1
+            End If
+        End If
+        If startPage > pPageCount Then
+            pShortfall = True
+            Exit Sub
+        End If
+        For pageNumber = startPage To endPage
+            pages.Add pageNumber
+        Next pageNumber
+        Exit Sub
     End If
 
     dashPosition = InStr(1, tokenText, "-", vbBinaryCompare)
@@ -368,12 +406,15 @@ Private Sub AddPageToken(ByRef pages As Collection, ByVal tokenText As String)
         If endPage < startPage Then
             Err.Raise 5, , "Range txbPage harus dari kecil ke besar: " & tokenText
         End If
+        If endPage > pPageCount Then Err.Raise 5, "ExportPageParser", "Page " & CStr(endPage) & " tidak tersedia. Perbaiki range eksplisit txbPage."
 
         For pageNumber = startPage To endPage
             pages.Add pageNumber
         Next pageNumber
     Else
-        pages.Add ParsePositiveLong(tokenText, tokenText)
+        pageNumber = ParsePositiveLong(tokenText, tokenText)
+        If pageNumber > pPageCount Then Err.Raise 5, "ExportPageParser", "Page " & CStr(pageNumber) & " tidak tersedia. Perbaiki txbPage."
+        pages.Add pageNumber
     End If
 End Sub
 

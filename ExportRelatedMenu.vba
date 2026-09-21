@@ -246,7 +246,7 @@ Private Sub cmdExport_Click()
         resultMessage = "Export selesai: " & CStr(runner.CompletedFiles) & " file dari " & CStr(pItems.Count) & " item."
         messageStyle = vbInformation
         If Len(warningMessage) > 0 Then
-            resultMessage = resultMessage & vbCrLf & vbCrLf & "Peringatan cleanup:" & vbCrLf & warningMessage
+            resultMessage = resultMessage & vbCrLf & vbCrLf & "Peringatan:" & vbCrLf & warningMessage
             messageStyle = vbExclamation
         End If
         If Not pMRBehavior Or Len(warningMessage) > 0 Then MsgBox resultMessage, messageStyle, "Export Queue"
@@ -259,7 +259,7 @@ Private Sub cmdExport_Click()
         If runner.FailedItemIndex > 0 Then resultMessage = resultMessage & vbCrLf & "Item: " & CStr(runner.FailedItemIndex)
         resultMessage = resultMessage & vbCrLf & "Error " & CStr(runner.LastErrorNumber) & ": " & runner.LastErrorDescription
         If Len(warningMessage) > 0 Then
-            resultMessage = resultMessage & vbCrLf & vbCrLf & "Peringatan cleanup:" & vbCrLf & warningMessage
+            resultMessage = resultMessage & vbCrLf & vbCrLf & "Peringatan:" & vbCrLf & warningMessage
         End If
         If pMRBehavior Then
             errorNumber = runner.LastErrorNumber

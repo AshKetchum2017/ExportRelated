@@ -517,6 +517,7 @@ Private Sub cmdSave_Click()
     Dim exportSettings As exportSettings
     Dim exportParser As ExportTemplateParser
     Dim pageParser As ExportPageParser
+    Dim tokenPlan As ExportTokenPlan
     Dim exportRunner As exportRunner
     Dim originalPage As Page
     Dim exportDir As String
@@ -532,7 +533,6 @@ Private Sub cmdSave_Click()
     Dim outputName As String
     Dim outputPath As String
     Dim templateText As String
-    Dim baseName As String
     Dim generatedNames() As String
     Dim exportError As Long
     Dim exportDescription As String
@@ -574,25 +574,13 @@ Private Sub cmdSave_Click()
     Set exportRunner = New exportRunner
     Set exportParser = New ExportTemplateParser
     Set pageParser = New ExportPageParser
+    Set tokenPlan = New ExportTokenPlan
 
     templateText = exportSettings.templateText
-    If Not pageParser.ResolvePageGroups(doc, exportSettings.pageText, pageGroups) Then
-        MsgBox "Format page di txbPage tidak valid atau kosong.", vbExclamation, "Export Related"
-        Exit Sub
-    End If
+    tokenPlan.Prepare doc, exportSettings.pageText, templateText
+    Set pageGroups = tokenPlan.Groups
 
     outputCount = pageGroups.Count
-    If Len(templateText) > 0 Then
-        If Not exportParser.ValidateNameTemplate(templateText, outputCount, pageParser.SyncGroupCount) Then
-            MsgBox "Jumlah value di txbName tidak sesuai dengan jumlah page di txbPage.", vbExclamation, "Export Related"
-            Exit Sub
-        End If
-    End If
-
-    baseName = exportParser.RemoveDocumentExtension(doc.Name)
-    If Len(baseName) = 0 Then
-        baseName = "Export"
-    End If
 
     exportFormat = ResolveExportFormat(Trim$(cmbExFormat.value))
     ReDim generatedNames(0 To outputCount - 1)
@@ -613,7 +601,7 @@ Private Sub cmdSave_Click()
         Next groupPageIndex
 
         firstPageNumber = pageParser.FirstPageInGroup(pageGroup)
-        generatedNames(exportIndex - 1) = exportParser.BuildExportFileName(baseName, templateText, exportIndex - 1, firstPageNumber, pageParser.SyncGroupIndex(exportIndex) - 1)
+        generatedNames(exportIndex - 1) = tokenPlan.NameAt(exportIndex)
     Next exportIndex
     txbDirectory.Text = exportSettings.Directory
     SaveCurrentDirectorySetting
@@ -652,7 +640,11 @@ Private Sub cmdSave_Click()
     If Not originalPage Is Nothing Then originalPage.Activate
     On Error GoTo ExportFailed
 
-    MsgBox "Ekspor berhasil dilakukan untuk " & outputCount & " file.", vbInformation, "Export Related"
+    If Len(tokenPlan.WarningDescription) > 0 Then
+        MsgBox "Ekspor selesai." & vbCrLf & tokenPlan.WarningDescription, vbExclamation, "Export Related"
+    Else
+        MsgBox "Ekspor berhasil dilakukan untuk " & outputCount & " file.", vbInformation, "Export Related"
+    End If
     Unload Me
     Exit Sub
 
