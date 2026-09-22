@@ -51,13 +51,24 @@ Public Sub Prepare(ByVal doc As Document, ByVal pageText As String, ByVal nameTe
     Next part
 
     If Not hasDynamic Then
-        If Not pParser.ValidateNameTemplate(nameText, sourceGroups.Count, pages.SyncGroupCount) Then Fail "Jumlah value nama tidak sesuai dengan grup page."
+        If Not pParser.ValidateNameTemplate(nameText, sourceGroups.Count, pages.SyncGroupCount) Then _
+            Fail "Jumlah value nama tidak sesuai dengan grup page."
+
         For index = 1 To sourceGroups.Count
             group = sourceGroups(index)
             pGroups.Add group
-            pNames.Add pParser.BuildExportFileName(baseName, nameText, index - 1, pages.FirstPageInGroup(group), pages.SyncGroupIndex(index) - 1)
+
+            On Error GoTo NameResolutionFailed
+            pNames.Add pParser.BuildExportFileName( _
+                baseName, _
+                nameText, _
+                index - 1, _
+                pages.FirstPageInGroup(group), _
+                pages.SyncGroupIndex(index) - 1)
+            On Error GoTo 0
         Next index
-    Else
+
+        Else
         explicitSync = (pages.SyncGroupCount > 1 And blockCount > 1)
         If explicitSync And pages.SyncGroupCount <> blockCount Then Fail "Jumlah blok nama dinamis harus sesuai dengan grup sync txbPage."
         sourceIndex = 1
@@ -118,7 +129,16 @@ Public Sub Prepare(ByVal doc As Document, ByVal pageText As String, ByVal nameTe
                     resolved = resolved & AssemblePart(body, target, mode)
                 Next part
                 pGroups.Add group
-                pNames.Add pParser.BuildExportFileName(baseName, resolved, localIndex, pages.FirstPageInGroup(group), localIndex)
+
+                On Error GoTo NameResolutionFailed
+                pNames.Add pParser.BuildExportFileName( _
+                    baseName, _
+                    resolved, _
+                    localIndex, _
+                    pages.FirstPageInGroup(group), _
+                    localIndex)
+                On Error GoTo 0
+
             Next localIndex
             sourceIndex = first + count
         Next block
@@ -132,6 +152,22 @@ Public Sub Prepare(ByVal doc As Document, ByVal pageText As String, ByVal nameTe
         pWarning = "Page tidak cukup untuk batas token dinamis. Output hanya menghasilkan " & _
             CStr(pGroups.Count) & " file (" & CStr(pageTotal) & " page dalam seluruh output)."
     End If
+
+    If shortage Then
+        For index = 1 To pGroups.Count
+            group = pGroups(index)
+            pageTotal = pageTotal + pages.PageGroupCount(group)
+        Next index
+
+        pWarning = "Page tidak cukup untuk batas token dinamis. Output hanya menghasilkan " & _
+            CStr(pGroups.Count) & " file (" & CStr(pageTotal) & " page dalam seluruh output)."
+    End If
+
+    Exit Sub
+
+NameResolutionFailed:
+    RaiseNameResolutionError baseName, Err.Description
+
 End Sub
 
 Private Function PartBody(ByVal part As String, ByRef target As String, ByRef mode As Long) As String
@@ -178,6 +214,32 @@ Private Function AssemblePart(ByVal body As String, ByVal target As String, ByVa
         Case Else: AssemblePart = body
     End Select
 End Function
+
+Private Function IsNumericOnlyName(ByVal value As String) As Boolean
+    Dim i As Long
+
+    value = Trim$(value)
+    If Len(value) = 0 Then Exit Function
+
+    For i = 1 To Len(value)
+        If Mid$(value, i, 1) < "0" Or Mid$(value, i, 1) > "9" Then Exit Function
+    Next i
+
+    IsNumericOnlyName = True
+End Function
+
+Private Sub RaiseNameResolutionError(ByVal baseName As String, _
+                                     ByVal originalDescription As String)
+    If IsNumericOnlyName(baseName) Then
+        Err.Raise 5, "ExportTokenPlan", _
+            originalDescription & vbCrLf & vbCrLf & _
+            "Nama dokumen saat ini hanya berupa angka: " & baseName & "." & vbCrLf & _
+            "Jika dokumen baru diproses melalui SignCut, simpan file CDR terlebih dahulu " & _
+            "agar nama dokumen kembali ke nama file asal."
+    End If
+
+    Err.Raise 5, "ExportTokenPlan", originalDescription
+End Sub
 
 Private Sub Fail(ByVal message As String)
     Err.Raise 5, "ExportTokenPlan", message
