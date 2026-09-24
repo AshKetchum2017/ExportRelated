@@ -511,6 +511,62 @@ Failed:
     Err.Raise number, "ExportRelatedSettings.MRBehaviorAction", description
 End Sub
 
+Public Function MRCreateBehaviorFormatEditor() As Object
+    Dim formatForm As Object
+    Dim formName As String
+    Dim operation As String
+    Dim errorNumber As Long
+    Dim errorDescription As String
+
+    On Error GoTo Failed
+
+    If pQueueDraft Is Nothing Then
+        Err.Raise 5, , "Settings belum dibuka dalam konteks antrean."
+    End If
+
+    operation = "Menentukan format settings"
+
+    Select Case ResolveExportFormat(Trim$(cmbExFormat.Value))
+        Case cdrJPEG
+            formName = "JPEGSettings"
+        Case Else
+            Err.Raise 5, , _
+                "MacroBehavior Format Settings saat ini baru mendukung JPEG."
+    End Select
+
+    operation = "UserForms.Add(" & formName & ")"
+    Set formatForm = UserForms.Add(formName)
+
+    If formatForm Is Nothing Then
+        Err.Raise 91, , _
+            "UserForms.Add tidak mengembalikan instance " & formName & "."
+    End If
+
+    operation = "Menyiapkan snapshot " & formName
+    pQueueDraft.Settings.FormatText = _
+        NormalizeExportFormatText(cmbExFormat.Value)
+
+    pQueueDraft.EnsureFormatSettings
+
+    operation = formName & ".BeginQueueEdit"
+    formatForm.BeginQueueEdit pQueueDraft
+
+    Set MRCreateBehaviorFormatEditor = formatForm
+    Exit Function
+
+Failed:
+    errorNumber = Err.Number
+    errorDescription = Err.Description
+
+    On Error Resume Next
+    If Not formatForm Is Nothing Then Unload formatForm
+    On Error GoTo 0
+
+    Err.Raise errorNumber, _
+        "ExportRelatedSettings.MRCreateBehaviorFormatEditor", _
+        operation & vbCrLf & errorDescription
+End Function
+
 Private Sub cmdSave_Click()
 
     Dim doc As Document

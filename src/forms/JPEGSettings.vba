@@ -1,5 +1,9 @@
 Option Explicit
 
+' MacroRunner integration: no reference to the runner project is required.
+Private pMRBehaviorObserver As Object
+Private pMRAction As Boolean
+
 ' Code-behind untuk UserForm dengan (Name) = JPEGSettings.
 ' Save menyimpan snapshot opsi JPEG untuk ekspor berikutnya.
 Private pPresets As Collection
@@ -307,7 +311,42 @@ Public Function ReadCurrentSettings() As JPEGPreset
 End Function
 
 Private Sub cmdClose_Click()
+
+    If Not pMRBehaviorObserver Is Nothing Then
+        Me.Hide
+
+        If Not pMRAction Then
+            CallByName pMRBehaviorObserver, _
+                "FormatEditorFinished", _
+                VbMethod, _
+                False
+        End If
+
+        Exit Sub
+
+    End If
+
     Unload Me
+End Sub
+
+Private Sub UserForm_QueryClose( _
+        Cancel As Integer, _
+        CloseMode As Integer)
+
+    If pMRBehaviorObserver Is Nothing Then Exit Sub
+
+    If CloseMode = vbFormControlMenu Then
+        Cancel = True
+        Me.Hide
+
+        If Not pMRAction Then
+            CallByName pMRBehaviorObserver, _
+                "FormatEditorFinished", _
+                VbMethod, _
+                False
+        End If
+    End If
+
 End Sub
 
 Private Sub cmdSave_Click()
@@ -317,18 +356,120 @@ Private Sub cmdSave_Click()
     Dim errorDescription As String
 
     On Error GoTo SaveFailed
+
     Set settings = ReadCurrentSettings()
     Set store = New JPEGSettingsStore
+
     If pQueueItem Is Nothing Then
         store.SaveSettings settings
     Else
-        pQueueItem.JPEGSettingsXML = store.SerializeSettings(settings)
+        pQueueItem.JPEGSettingsXML = _
+            store.SerializeSettings(settings)
     End If
+
+    If Not pMRBehaviorObserver Is Nothing Then
+        Me.Hide
+
+        If Not pMRAction Then
+            CallByName pMRBehaviorObserver, _
+                "FormatEditorFinished", _
+                VbMethod, _
+                True
+        End If
+
+        Exit Sub
+    End If
+
     Unload Me
     Exit Sub
 
 SaveFailed:
     errorNumber = Err.Number
     errorDescription = Err.Description
-    MsgBox "Gagal menyimpan pengaturan JPEG (" & CStr(errorNumber) & "): " & errorDescription, vbExclamation, "JPEG Settings"
+
+    If Not pMRBehaviorObserver Is Nothing Then
+
+        If pMRAction Then
+            Err.Raise errorNumber, _
+                "JPEGSettings.cmdSave", _
+                errorDescription
+        End If
+
+        CallByName pMRBehaviorObserver, _
+            "FormatEditorFailed", _
+            VbMethod, _
+            errorNumber, _
+            errorDescription
+
+        Exit Sub
+    End If
+
+    MsgBox _
+        "Gagal menyimpan pengaturan JPEG (" & _
+        CStr(errorNumber) & "): " & _
+        errorDescription, _
+        vbExclamation, _
+        "JPEG Settings"
+End Sub
+
+Public Sub MRSetBehaviorObserver(ByVal observer As Object)
+    Set pMRBehaviorObserver = observer
+End Sub
+
+Public Sub MRDetachBehavior()
+    Set pMRBehaviorObserver = Nothing
+End Sub
+
+Public Sub MRBehaviorValue(ByVal target As String, ByVal value As Variant)
+
+    Select Case LCase$(target)
+        Case "cmbcolormode"
+            If Not SelectKeyedComboItem( _
+                    cmbColorMode, _
+                    LCase$(CStr(value))) Then
+
+                Err.Raise 5, , _
+                    "Color mode JPEG tidak tersedia: " & CStr(value)
+            End If
+        Case Else
+            Err.Raise 5, , _
+                "Target JPEG settings tidak terdaftar: " & target
+    End Select
+
+End Sub
+
+Public Sub MRBehaviorAction(ByVal action As String)
+    Dim errorNumber As Long
+    Dim errorDescription As String
+
+    On Error GoTo Failed
+
+    If pQueueItem Is Nothing Then
+        Err.Raise 5, , _
+            "JPEGSettings belum dibuka dalam konteks antrean."
+    End If
+
+    pMRAction = True
+
+    Select Case LCase$(action)
+        Case "cmdsave"
+            cmdSave_Click
+        Case "cmdclose"
+            cmdClose_Click
+        Case Else
+            Err.Raise 5, , _
+                "Action JPEG settings tidak terdaftar: " & action
+    End Select
+
+    pMRAction = False
+    Exit Sub
+
+Failed:
+    errorNumber = Err.Number
+    errorDescription = Err.Description
+    pMRAction = False
+
+    Err.Raise errorNumber, _
+        "JPEGSettings.MRBehaviorAction", _
+        errorDescription
 End Sub

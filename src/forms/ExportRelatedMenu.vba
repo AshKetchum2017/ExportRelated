@@ -4,7 +4,6 @@ Option Explicit
 Private pMRObserver As Object
 Private pMRToken As String
 
-
 ' Code-behind UserForm (Name) = ExportRelatedMenu.
 ' lbxSettingLists: MSForms.ListBox, satu baris = pItems.Item(ListIndex + 1).
 Private pItems As Collection
