@@ -4,7 +4,7 @@ ExportRelated adalah macro VBA untuk CorelDRAW yang dirancang untuk mengelola pe
 
 Macro ini dibuat untuk mengurangi pekerjaan manual ketika beberapa page atau dokumen perlu diekspor ke format, directory, nama file, dan kombinasi layer yang berbeda.
 
-ExportRelated menyediakan **Export Queue**, pengelompokan page, template nama berbasis token, pengaturan per format, serta **Parent Directory** untuk menggunakan folder dokumen sumber sebagai lokasi hasil.
+ExportRelated menyediakan **Export Queue**, pengelompokan page, template nama berbasis token (termasuk deret dinamis), pengaturan per format, **Parent Directory** untuk menggunakan folder dokumen sumber sebagai lokasi hasil, serta integrasi Behavior dengan MacroRunner.
 
 ## Main Features
 
@@ -112,6 +112,19 @@ Kurung biasa `()` mengelompokkan page menjadi satu file. Kurung kurawal `{}` mem
 **Grup multi-page hanya didukung untuk PDF.** Untuk PNG, JPEG, dan DXF, setiap grup harus berisi satu page. Gunakan `{1-3}` atau `(1),(2),(3)` untuk menghasilkan tiga file terpisah.
 
 Nomor page harus tersedia pada dokumen sumber. Rentang ditulis dari kecil ke besar, seperti `2-5`.
+
+### Dynamic Page Token
+
+`/*n` pada `txbPage` meneruskan deret page dari angka awal. Akhiran `-n` membatasi **jumlah page fisik**, bukan nomor page akhir atau jumlah file.
+
+| Input `txbPage` | Hasil pada dokumen yang cukup panjang |
+|---|---|
+| `{1/*n}` | Satu file per page mulai page 1 sampai akhir dokumen. |
+| `{3/*n-3}` | Tiga file: page 3, 4, dan 5. |
+| `(1/*n-5)` | Satu PDF yang menggabungkan page 1 sampai 5. |
+| `{(1/*n-3),4,5}` | Tiga file: PDF page 1–3, lalu page 4, lalu page 5. |
+
+Hanya `/*n` yang didukung di `txbPage`; `/*a` dan `/*an` digunakan untuk nama. Jika batas dinamis melebihi page yang tersedia, macro menghasilkan bagian yang tersedia dan memberi peringatan. Misalnya, pada dokumen tiga page, `{1/*n-5}` menghasilkan tiga file dan `(1/*n-5)` menghasilkan satu PDF tiga page. Jika seluruh input tidak menghasilkan page, proses dihentikan. Rentang **eksplisit** seperti `{1-5}` pada dokumen yang sama tetap ditolak sebelum export.
 
 ### Sync Groups
 
@@ -234,6 +247,46 @@ Panjang blok boleh berbeda. `{A}1,2,3;{B}X,Y` menghasilkan lima nama: `A1`, `A2`
 
 Daftar nilai nama divalidasi terhadap jumlah output atau jumlah segmen yang relevan. Pola nama dan pengelompokan page perlu disusun sebagai satu kesatuan.
 
+### Dynamic Name Tokens
+
+Token dinamis di `txbName` membuat deret nilai sesuai **jumlah file output**. Akhiran `-n` membatasi jumlah file dari blok tersebut, bukan nilai terakhir atau jumlah page di dalam satu PDF.
+
+| Pola | Deret nilai |
+|---|---|
+| `1/*n` | `1, 2, 3, ...` |
+| `008/*n` | `008, 009, 010, ...` |
+| `Y/*a` | `Y, Z, AA, AB, ...` |
+| `y/*a` | `y, z, aa, ab, ...` |
+| `A008/*an` | `A008, A009, A010, ...` |
+| `A1B008/*an` | `A1B008, A1B009, ...` |
+| `A4/*an-5` | Maksimal lima nilai: `A4` sampai `A8`. |
+
+`/*n` memerlukan seed angka saja; `/*a` menaikkan akhiran huruf dan `/*an` menaikkan akhiran angka sambil mempertahankan prefix sebelumnya. Padding nol dipertahankan dan dapat bertambah panjang. Akhiran huruf campuran besar/kecil seperti `aB/*a` ditolak. Token di dalam `{teks literal}` tidak diekspansi.
+
+Untuk membagi sepuluh output menjadi dua blok nama:
+
+```text
+txbPage: {1/*n}
+txbName: {}A1/*an-5;{}B1/*an-5 | ___1/*n
+```
+
+Pada dokumen sepuluh page, blok pertama memberi nama `A1_1` sampai `A5_5` untuk page 1–5; blok kedua memberi `B1_1` sampai `B5_5` untuk page 6–10. Counter nama dan suffix dimulai lagi pada blok kedua, sedangkan urutan page terus berjalan. Jika beberapa blok dinamis dipakai tanpa grup `;` di `txbPage`, setiap blok sebelum blok terakhir memerlukan batas. Batas eksplisit nama dan affix dalam satu blok harus konsisten.
+
+Pisahkan deret dinamis dan daftar nilai koma ke blok `;` yang berbeda; `{}1/*n-3,9` tidak didukung. Pola daftar lama seperti `{A}1,2;{B}1,2` tetap didukung. Input asli tetap disimpan dalam job dan dihitung ulang terhadap dokumen sumber saat proses berjalan.
+
+### Wildcard Target, `&*`, dan `{~}`
+
+Di **target replacement**, `/*n`, `/*a`, dan `/*an` mencocokkan token angka, huruf, atau alfanumerik utuh. Kecocokan target diganti seluruhnya dan pencarian tidak membedakan kapitalisasi. Contoh untuk dokumen bernama `AYAM TOTAL 10 EKOR`:
+
+```text
+txbPage: {1/*n}
+txbName: TOTAL /*n /* 1 | ___1/*n
+```
+
+Hasilnya `AYAM 1 EKOR_1`, `AYAM 1 EKOR_2`, dan seterusnya. `&*` memisahkan alternatif teks literal dalam target, misalnya `TOTAL&*TTL&*JUMLAH /*n EKOR` dapat mencocokkan `TOTAL 10 EKOR`, `TTL 20 EKOR`, atau `JUMLAH 3 EKOR`. Operator `&` biasa tetap literal. Pada target dengan operator baru ini, kecocokan yang tidak ditemukan menghasilkan error sebelum export.
+
+`{~}` di sisi replacement mempertahankan teks aktual sebelum atau sesudah wildcard yang cocok. Contoh target `TTL 10 EKOR` dengan replacement `{~} 1 {~}` menghasilkan `TTL 1 EKOR`; tanpa spasi setelah `{~}`, hasilnya `TTL1 EKOR`. Spasi tepi teks yang dipertahankan dibuang, sehingga tulis spasi pemisah secara eksplisit. `{}` tetap berarti teks kosong. `{~}` tanpa target atau dengan lebih dari satu wildcard ditolak.
+
 ---
 
 ## Layer Selection
@@ -318,6 +371,8 @@ Pengaturan tambahan mencakup:
 
 JPEG menggunakan background/matte dan tidak menyediakan transparency.
 
+Pada integrasi MacroRunner, `JPEGSettings` saat ini mengekspos **hanya** `cmbColorMode` (`"Grayscale"`, `"RGB"`, atau `"CMYK"`) sebagai target Behavior, dengan action `@cmdSave` dan `@cmdClose`. Opsi JPEG lainnya tetap dapat diatur lewat form secara manual.
+
 Nilai Quality dipetakan berlawanan dengan Compression pada filter CorelDRAW: Quality 100% menggunakan Compression 0. Pemetaan ini telah diperbaiki pada perubahan tanggal 2026-09-10.
 
 Pilihan penggunaan color proof disimpan per item; konfigurasi proof aktual dibaca dari active view ketika proses dijalankan.
@@ -378,7 +433,7 @@ Suffix duplikat dibentuk berdasarkan nama hasil dalam item, bukan dengan mencari
 ## Basic Workflow
 
 1. Buka dokumen CorelDRAW yang akan diekspor.
-2. Jalankan `ExportRelatedWizard` untuk membuka Main UserForm.
+2. Buka `ExportRelatedMenu` melalui entry point project GMS yang kamu pasang. Source repo saat ini belum menyertakan wrapper pembuka `ExportRelatedWizard`.
 3. Aktifkan dokumen sumber, lalu gunakan **Add** melalui `cmdAddSetting`.
 4. Tentukan directory manual atau aktifkan `chkParentDirectory`.
 5. Pilih format melalui `cmbExFormat`.
@@ -393,9 +448,54 @@ Main UserForm dibuka secara `vbModeless`, sehingga user dapat berpindah dokumen 
 
 ---
 
+## MacroRunner Behavior
+
+ExportRelated dapat menjadi target `MacroBehavior` pada MacroRunner. Script menggunakan blok `{ExportRelated:...}`; satu blok dipakai untuk setiap kemunculan `ExportRelated` dalam antrean MacroRunner. **Save** di MacroRunner memeriksa grammar dan urutan blok, lalu **Process** memanggil `MRTargetBridge.ValidateBehavior` pada target untuk pemeriksaan semantik seluruh antrean sebelum eksekusi. Saat dijalankan, `MRTargetBridge.RunBehavior` membuka sesi editor/menu dan meneruskan instruksi.
+
+| Form | Target yang didukung | Action yang didukung |
+|---|---|---|
+| `ExportRelatedMenu` | `lbxSettingLists.Index` (mulai dari 1), `chkLayer1`, `chkLayer2`, `chkLayer3` | `@cmdAddSetting`, `@cmdExport`, `@cmdClose` |
+| `ExportRelatedSettings` | `txbName`, `txbPage`, `txbDirectory`, `cmbExFormat`, `chkParentDirectory` | `@cmdFormatSettings`, `@cmdSave`, `@cmdCancel` |
+| `JPEGSettings` | `cmbColorMode` (`Grayscale`, `RGB`, `CMYK`) | `@cmdSave`, `@cmdClose` |
+
+`JPEGSettings` hanya dapat dibuka setelah format `.jpg` dipilih di `ExportRelatedSettings` dan `@cmdFormatSettings` dijalankan. Selesaikan form JPEG dengan `@cmdSave` atau `@cmdClose` sebelum kembali ke editor job. `@cmdSave` di JPEG menyimpan snapshot pengaturannya; `@cmdClose` menutup editor format tanpa menyimpan perubahan tersebut. Kemudian `@cmdSave` pada `ExportRelatedSettings` memasukkan job ke antrean. Action harus ditulis eksplisit; assignment sendiri tidak menekan tombol.
+
+Contoh ilustratif untuk dokumen sumber yang **sudah tersimpan** dan mempunyai minimal tiga page:
+
+```text
+{ExportRelated:
+    ExportRelatedMenu[@cmdAddSetting];
+    ExportRelatedSettings[
+        txbName="{JPG}_1,2,3";
+        txbPage="{1-3}";
+        cmbExFormat=".jpg";
+        chkParentDirectory=True;
+        @cmdFormatSettings
+    ];
+    JPEGSettings[cmbColorMode="RGB";@cmdSave];
+    ExportRelatedSettings[@cmdSave];
+    ExportRelatedMenu[
+        lbxSettingLists.Index=1;
+        chkLayer1=True;
+        chkLayer2=False;
+        chkLayer3=False;
+        @cmdExport;
+        @cmdClose
+    ]
+}
+```
+
+Di Behavior, `Default` hanya tersedia untuk `txbDirectory` (`LastDirectory`), `cmbExFormat` (`LastExportFormat`), dan `chkParentDirectory` (`UseParentDirectory`) melalui registry `RinCorelMacros/ExportRelatedMacro`. `Nothing`, `Empty`, dan `Null` melewati assignment setelah target tetap divalidasi. Preflight semantik memastikan form, tipe nilai, action, urutan editor, dan indeks item sesuai script; kondisi dokumen, folder, dan ekspor aktual masih diperiksa lagi saat eksekusi. Penutupan menu utama menyelesaikan langkah MacroRunner.
+
+Bridge target ada di `src/modules/MRTargetBridge.bas` dan kontrak/sesinya di `ERBehaviorContract.cls` serta `ERBehaviorSession.cls`. Integrasi ini juga memakai `MRBehaviorParser`, `MRBehaviorBlock`, dan `MRBehaviorInstruction` dari [MacroRunner](https://github.com/AshKetchum2017/MacroRunner) sebagai class module pada project GMS target; ketiga source bersama itu tidak disertakan di repo ExportRelated ini. Samakan versi parser dan protokol bridge di kedua project.
+
+---
+
 ## Processing and Recovery
 
 Sebelum membuat file atau mengubah flag layer, runner memvalidasi seluruh antrean: dokumen sumber, directory, format, snapshot, page, pola nama, pilihan layer, dan benturan path antarhasil.
+
+`ExportTokenPlan` menghitung page dan nama dari input asli untuk jalur queue maupun single export. Jika permintaan token page dinamis melebihi jumlah page dokumen, hasil yang tersedia tetap dapat diekspor dengan peringatan jumlah file dan page; range page eksplisit di luar dokumen tetap menghentikan validasi sebelum export.
 
 Export kemudian dijalankan berurutan. Hasil ditulis ke file sementara dan diperiksa keberadaan serta ukurannya sebelum disalin ke tujuan. Runner PNG dan JPEG juga memeriksa penanda awal dan akhir format file; pemeriksaan ini bukan validasi visual seluruh isi gambar.
 
@@ -411,13 +511,13 @@ File sementara yang belum dapat dihapus dicoba kembali dan dilaporkan sebagai pe
 
 | File atau Kelompok Source | Tanggung Jawab |
 |---|---|
-| `ExportRelatedMasterWizard.bas` | Entry point `ExportRelatedWizard`. |
 | `ExportRelatedMenu.vba` | Main UserForm, antrean, checkbox layer, dan pemanggilan export. |
 | `ExportRelatedSettings.vba` | Editor job serta alur single export. |
 | `ExportSettings.cls` | Directory, format, page, template nama, dan Parent Directory. |
 | `ExportSettingItem.cls` | Dokumen sumber, snapshot format, pilihan layer, validasi item, dan summary. |
 | `ExportPageParser.cls` | Page range, grouping, pemisahan output, dan sync group. |
 | `ExportTemplateParser.cls` | Replacement, sequence, template langsung, prefix/suffix, pipeline, dan suffix duplikat. |
+| `ExportDynamicTokens.cls`, `ExportTokenPlan.cls` | Deret nama/page dinamis, wildcard target, dan rencana output bersama. |
 | `ExportQueueRunner.cls` | Validasi antrean, eksekusi lintas dokumen, serta pemulihan state. |
 | `ExportLayerState.cls` | Validasi, penerapan sementara, dan pemulihan print/export layer. |
 | `ExportRunner.cls` | Pemilihan runner format dan penerapan filter DXF. |
@@ -427,6 +527,7 @@ File sementara yang belum dapat dihapus dicoba kembali dan dilaporkan sebagai pe
 | `JPEGSettings.vba`, `JPEGPreset.cls`, `JPEGPresetReader.cls`, `JPEGSettingsStore.cls`, `JPEGExportRunner.cls` | Form, preset XML, snapshot, dan eksekusi JPEG. |
 | `DXFSettings.vba`, `DXFExportSettings.cls`, `DXFSettingsStore.cls` | Form, data pengaturan, dan snapshot DXF. |
 | `BitmapExportSupport.bas` | Helper bersama untuk preset XML, warna, resolusi, registry, dan opsi bitmap. |
+| `MRTargetBridge.bas`, `ERBehaviorContract.cls`, `ERBehaviorSession.cls` | Validasi dan pelaksanaan Behavior ExportRelated untuk MacroRunner. |
 | `Changelog.log` | Riwayat fitur, perubahan behavior, perbaikan, dan status pengembangan. |
 
 ---
@@ -435,11 +536,11 @@ File sementara yang belum dapat dihapus dicoba kembali dan dilaporkan sebagai pe
 
 Source ini ditujukan untuk project VBA di CorelDRAW pada Windows, dengan rujukan API CorelDRAW 2024 pada implementasi filter tertentu. Kompatibilitas lintas versi CorelDRAW belum dinyatakan teruji secara menyeluruh.
 
-Catatan referensi token membedakan pemeriksaan simulasi parser dan pengujian runtime CorelDRAW. Perubahan blok nama dan spasi literal telah diperiksa melalui harness adaptasi parser, tetapi catatan tersebut belum mengonfirmasi pengujian runtime untuk seluruh kombinasi. Contoh historis dengan spasi setelah koma perlu disesuaikan jika hasil yang diinginkan tidak menggunakan spasi tambahan.
+Catatan referensi token membedakan pemeriksaan simulasi parser dan pengujian runtime CorelDRAW. Perubahan blok nama, spasi literal, dan contoh token dinamis tidak berarti seluruh kombinasinya sudah diuji lewat file output nyata. Contoh historis dengan spasi setelah koma perlu disesuaikan jika hasil yang diinginkan tidak menggunakan spasi tambahan. Jalankan **Debug > Compile** serta uji dokumen dan hasil ekspor pada versi source yang dipasang.
 
-Paket source berisi standard module `.bas`, class module `.cls`, dan code-behind UserForm `.vba`. Paket ini belum menyertakan project `.gms` siap pakai maupun file designer UserForm `.frm`/`.frx`.
+Paket source berisi standard module `.bas`, class module `.cls`, dan code-behind UserForm `.vba`. Paket ini belum menyertakan project `.gms` siap pakai maupun file designer UserForm `.frm`/`.frx`. Kelas parser Behavior bersama dari MacroRunner juga perlu dipasang terpisah untuk integrasi tersebut.
 
-Untuk merakit project, modul dan class perlu dimasukkan ke project VBA, lalu UserForm beserta kontrolnya disiapkan dengan nama yang sesuai source. Entry point utama adalah `ExportRelatedWizard`.
+Untuk merakit project, modul dan class perlu dimasukkan ke project VBA, lalu UserForm beserta kontrolnya disiapkan dengan nama yang sesuai source. Wrapper `ExportRelatedWizard` yang disebut pada versi README sebelumnya tidak ada di tree repo saat ini; sediakan pembuka `ExportRelatedMenu` di project GMS bila diperlukan.
 
 `cmdHintName` dan `cmdHintPage` merujuk ke `NameHintMenu` dan `PageHintMenu`. Source kedua form bantuan tersebut belum disertakan dalam paket ini, sehingga perlu dilengkapi atau pemanggilannya disesuaikan saat merakit project.
 
@@ -459,7 +560,9 @@ ExportRelated saat ini mencakup:
 - snapshot PNG/JPEG/DXF serta pilihan preset PDF per item;
 - page grouping, split output, dan sync group;
 - template nama alfanumerik, replacement, prefix/suffix, dan pipeline;
+- deret dinamis page/nama, wildcard replacement, alternatif target `&*`, dan preservasi `{~}`;
 - Parent Directory;
+- integrasi MacroRunner Behavior untuk queue dan pengaturan `cmbColorMode` di `JPEGSettings`;
 - pengaturan bitmap, profil warna, serta opsi format;
 - validasi queue, pemulihan state dokumen, dan cleanup file sementara.
 
