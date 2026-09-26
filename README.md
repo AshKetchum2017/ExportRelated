@@ -467,6 +467,8 @@ Pengembangan DXF di luar checkpoint R2007, penerapan CurvesAs/Tolerance, dan pen
 
 ---
 
-## Feedback and Development
+## Lisensi dan masukan
+
+Project ini menggunakan lisensi MIT; lihat [LICENSE](LICENSE).
 
 Source boleh dipelajari dan dikembangkan, dan issue/feedback tentang bug, edge case, CorelDRAW API, architecture, atau improvement sangat dihargai.
