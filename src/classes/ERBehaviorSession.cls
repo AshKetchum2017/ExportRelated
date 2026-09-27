@@ -38,9 +38,9 @@ Public Sub Start(ByVal script As String, ByVal observer As Object, ByVal token A
     pMenu.Show vbModeless
     For Each ins In block.Instructions
         CheckInterrupted
-        operation = ins.FormName & " / " & ins.Target & " (posisi " & CStr(ins.Position) & ")"
-        If ins.Kind = "stage" Then
-            Select Case LCase$(ins.FormName)
+        operation = ins.formName & " / " & ins.target & " (posisi " & CStr(ins.position) & ")"
+        If ins.kind = "stage" Then
+            Select Case LCase$(ins.formName)
 
                 Case "exportrelatedmenu"
                     If Not pFormatEditor Is Nothing Then
@@ -77,15 +77,15 @@ Public Sub Start(ByVal script As String, ByVal observer As Object, ByVal token A
             End Select
             DoEvents
             CheckInterrupted
-        ElseIf ins.Kind = "action" Then
+        ElseIf ins.kind = "action" Then
             ExecuteAction ins
-        ElseIf ins.Kind <> "skip" Then
-            value = ins.Value
-            If ins.Kind = "default" Then value = pDefaults(LCase$(ins.Target))
-            Select Case LCase$(ins.FormName)
+        ElseIf ins.kind <> "skip" Then
+            value = ins.value
+            If ins.kind = "default" Then value = pDefaults(LCase$(ins.target))
+            Select Case LCase$(ins.formName)
 
                 Case "exportrelatedsettings"
-                    pEditor.MRBehaviorValue ins.Target, value
+                    pEditor.MRBehaviorValue ins.target, value
 
                 Case "jpegsettings"
                     If pFormatEditor Is Nothing Then
@@ -94,10 +94,10 @@ Public Sub Start(ByVal script As String, ByVal observer As Object, ByVal token A
                     End If
 
                     pFormatEditor.MRBehaviorValue _
-                        ins.Target, value
+                        ins.target, value
 
                 Case Else
-                    pMenu.MRBehaviorValue ins.Target, value
+                    pMenu.MRBehaviorValue ins.target, value
 
             End Select
         End If
@@ -111,7 +111,7 @@ Public Sub Start(ByVal script As String, ByVal observer As Object, ByVal token A
     End If
     Exit Sub
 Failed:
-    number = Err.Number: source = Err.Source: description = Err.Description
+    number = Err.number: source = Err.source: description = Err.description
     pExecuting = False
     AbortSession
     Err.Raise number, "ERBehaviorSession", operation & vbCrLf & _
@@ -124,10 +124,10 @@ Private Sub SnapshotDefaults(ByVal block As MRBehaviorBlock, ByVal contract As E
     Set pDefaults = CreateObject("Scripting.Dictionary")
     Set fso = CreateObject("Scripting.FileSystemObject")
     For Each ins In block.Instructions
-        If ins.Kind = "default" Then
-            target = LCase$(ins.Target)
+        If ins.kind = "default" Then
+            target = LCase$(ins.target)
             If Not pDefaults.Exists(target) Then
-                key = contract.DefaultKey(ins.Target)
+                key = contract.DefaultKey(ins.target)
                 raw = GetSetting("RinCorelMacros", "ExportRelatedMacro", key, ChrW(1))
                 If raw = ChrW(1) Then Err.Raise 5, , "Default registry belum tersedia: " & key
                 Select Case target
@@ -154,8 +154,8 @@ Private Sub ExecuteAction(ByVal ins As MRBehaviorInstruction)
     Dim formName As String
     Dim target As String
 
-    formName = LCase$(ins.FormName)
-    target = LCase$(ins.Target)
+    formName = LCase$(ins.formName)
+    target = LCase$(ins.target)
 
     Select Case formName
 
@@ -183,7 +183,7 @@ Private Sub ExecuteAction(ByVal ins As MRBehaviorInstruction)
                             "Selesaikan Format Settings sebelum menutup ExportRelatedSettings."
                     End If
 
-                    pEditor.MRBehaviorAction ins.Target
+                    pEditor.MRBehaviorAction ins.target
                     FinishEditor (target = "cmdsave")
             End Select
 
@@ -195,7 +195,7 @@ Private Sub ExecuteAction(ByVal ins As MRBehaviorInstruction)
                             "JPEGSettings belum dibuka."
                     End If
 
-                    pFormatEditor.MRBehaviorAction ins.Target
+                    pFormatEditor.MRBehaviorAction ins.target
                     FinishFormatEditor
 
             End Select
@@ -269,8 +269,8 @@ Public Sub FormatEditorFinished(ByVal saved As Boolean)
     Exit Sub
 
 Failed:
-    errorNumber = Err.Number
-    errorDescription = Err.Description
+    errorNumber = Err.number
+    errorDescription = Err.description
 
     FormatEditorFailed errorNumber, errorDescription
 End Sub
@@ -336,7 +336,7 @@ Public Sub EditorFinished(ByVal saved As Boolean)
     End If
     Exit Sub
 Failed:
-    number = Err.Number: description = Err.Description
+    number = Err.number: description = Err.description
     EditorFailed number, description
 End Sub
 
