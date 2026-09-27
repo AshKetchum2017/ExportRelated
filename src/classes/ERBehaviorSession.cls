@@ -9,14 +9,17 @@ Private pExecuting As Boolean
 Private pInterrupted As Boolean
 Private pExpectedClose As Boolean
 Private pMainClosing As Boolean
+Private pInterruptNumber As Long
+Private pInterruptDescription As String
 Private pDefaults As Object
 Private pFormatEditor As Object
 
 Public Sub Start(ByVal script As String, ByVal observer As Object, ByVal token As String)
     Dim contract As New ERBehaviorContract, block As MRBehaviorBlock
     Dim ins As MRBehaviorInstruction, existing As Object, value As Variant
-    Dim operation As String, number As Long, description As String
+    Dim operation As String, number As Long, source As String, description As String
     On Error GoTo Failed
+    operation = "Memvalidasi kontrak ExportRelated"
     Set block = contract.Validate(script)
     operation = "Membaca snapshot Default registry"
     SnapshotDefaults block, contract
@@ -108,10 +111,11 @@ Public Sub Start(ByVal script As String, ByVal observer As Object, ByVal token A
     End If
     Exit Sub
 Failed:
-    number = Err.Number: description = Err.Description
+    number = Err.Number: source = Err.Source: description = Err.Description
     pExecuting = False
     AbortSession
-    Err.Raise number, "ERBehaviorSession", operation & vbCrLf & description
+    Err.Raise number, "ERBehaviorSession", operation & vbCrLf & _
+        "Source asli: " & source & vbCrLf & description
 End Sub
 
 Private Sub SnapshotDefaults(ByVal block As MRBehaviorBlock, ByVal contract As ERBehaviorContract)
@@ -280,6 +284,8 @@ Public Sub FormatEditorFailed( _
 
     If pExecuting Then
         pInterrupted = True
+        pInterruptNumber = number
+        pInterruptDescription = description
         Exit Sub
     End If
 
@@ -295,6 +301,9 @@ Public Sub FormatEditorFailed( _
             token, _
             number, _
             description
+    Else
+        MsgBox "Gagal menyimpan pengaturan format (" & CStr(number) & "): " & _
+            description, vbExclamation, "Export Queue"
     End If
 
 End Sub
@@ -335,11 +344,18 @@ Public Sub EditorFailed(ByVal number As Long, ByVal description As String)
     Dim observer As Object, token As String
     If pExecuting Then
         pInterrupted = True
+        pInterruptNumber = number
+        pInterruptDescription = description
         Exit Sub
     End If
     Set observer = pObserver: token = pToken
     AbortSession
-    If Not observer Is Nothing Then CallByName observer, "BehaviorFailed", VbMethod, token, number, description
+    If Not observer Is Nothing Then
+        CallByName observer, "BehaviorFailed", VbMethod, token, number, description
+    Else
+        MsgBox "Gagal menyimpan item export (" & CStr(number) & "): " & _
+            description, vbExclamation, "Export Queue"
+    End If
 End Sub
 
 Public Sub MainClosing()
@@ -356,32 +372,52 @@ Public Sub MacroUnloaded(ByVal token As String)
 End Sub
 
 Private Sub CheckInterrupted()
-    If pInterrupted Then Err.Raise 5, "ERBehaviorSession", "Behavior diinterupsi: form ditutup atau editor diselesaikan sebelum instruksi selesai."
+    If Not pInterrupted Then Exit Sub
+    If pInterruptNumber <> 0 Then _
+        Err.Raise pInterruptNumber, "ERBehaviorSession", pInterruptDescription
+    Err.Raise 5, "ERBehaviorSession", "Behavior diinterupsi: form ditutup atau editor diselesaikan sebelum instruksi selesai."
 End Sub
 
 Private Sub AbortSession()
-
+    Dim menuVisible As Boolean
     On Error Resume Next
-    If Not pFormatEditor Is Nothing Then
-        pFormatEditor.MRDetachBehavior
-        Unload pFormatEditor
-    End If
-
-    Set pFormatEditor = Nothing
-    If Not pEditor Is Nothing Then
-        pEditor.MRDetachBehavior
-        Unload pEditor
-    End If
-
-    Set pEditor = Nothing
-    If Not pMenu Is Nothing Then
-        pMenu.MRDetachRunner
-        If Not pMainClosing Then
-            pMenu.Enabled = True
-            pMenu.MRSetBehaviorMode False
-        End If
-    End If
-
-    Set pMenu = Nothing
+    If Not pMenu Is Nothing Then menuVisible = pMenu.Visible
+    If Not pMenu Is Nothing Then pMenu.MRDetachRunner
     Set pObserver = Nothing
+    pToken = vbNullString
+    pExecuting = False
+
+    ' A closed or never-shown main form has no safe UI to recover into.
+    If pMainClosing Or Not menuVisible Then
+        If Not pFormatEditor Is Nothing Then
+            pFormatEditor.MRDetachBehavior
+            Unload pFormatEditor
+        End If
+        If Not pEditor Is Nothing Then
+            pEditor.MRDetachBehavior
+            Unload pEditor
+        End If
+        If Not pMenu Is Nothing Then
+            If Not menuVisible Then Unload pMenu
+        End If
+        Set pFormatEditor = Nothing
+        Set pEditor = Nothing
+        Set pMenu = Nothing
+        Exit Sub
+    End If
+
+    ' Keep the draft and its observer alive so Save/Cancel can finish normally.
+    If Not pFormatEditor Is Nothing Then
+        pFormatEditor.Enabled = True
+        If Not pFormatEditor.Visible Then pFormatEditor.Show vbModeless
+    End If
+    If Not pEditor Is Nothing Then
+        pEditor.Enabled = (pFormatEditor Is Nothing)
+        If pFormatEditor Is Nothing And Not pEditor.Visible Then pEditor.Show vbModeless
+        pMenu.Enabled = False
+    Else
+        pMenu.Enabled = True
+        pMenu.MRSetBehaviorMode False
+        Set pMenu = Nothing
+    End If
 End Sub
