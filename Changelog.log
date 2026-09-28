@@ -93,3 +93,8 @@
 + Menambahkan dukungan blok nama berurutan, target alternatif &*, dan preservasi {~}.
 ~ Queue, single export, dan alur MacroRunner kini memakai rencana nama/page yang sama agar hasil ekspor lebih konsisten.
 ~ Page dinamis yang tidak cukup tetap menghasilkan output yang tersedia dengan peringatan; range page eksplisit yang tidak valid tetap menghentikan ekspor sebelum file dibuat.
+
+------------------------------------------------------------------------------------------------------------------------------------------------------
+2026-09-28
++ Menambahkan `txbPreview` di ExportRelatedSettings untuk menampilkan nama file export pertama beserta ekstensi saat nama, page, atau format berubah.
++ Preview tetap tampil saat `txbPage` kosong, tidak dapat diedit, dan kosong sementara ketika token belum valid.

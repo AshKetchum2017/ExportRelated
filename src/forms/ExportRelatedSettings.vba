@@ -70,6 +70,8 @@ Public Sub BeginQueueEdit(ByVal item As ExportSettingItem)
     isLoadingSettings = False
     operation = "EnsureFormatSettings pada draft"
     pQueueDraft.EnsureFormatSettings
+    operation = "Memperbarui preview nama file"
+    UpdateFilePreview
     Exit Sub
 
 BeginFailed:
@@ -219,11 +221,69 @@ Private Sub txbDirectory_AfterUpdate()
     SaveCurrentDirectorySetting
 End Sub
 
+Private Sub txbName_Change()
+    If isLoadingSettings Then Exit Sub
+    UpdateFilePreview
+End Sub
+
+Private Sub txbPage_Change()
+    If isLoadingSettings Then Exit Sub
+    UpdateFilePreview
+End Sub
+
 Private Sub cmbExFormat_Change()
 
     If isLoadingSettings Then Exit Sub
     SaveCurrentExportFormatSetting
+    UpdateFilePreview
 
+End Sub
+
+Private Sub UpdateFilePreview()
+    Dim doc As Document
+    Dim tokenPlan As ExportTokenPlan
+    Dim nameParser As ExportTemplateParser
+    Dim pageParser As ExportPageParser
+    Dim groups As Collection
+    Dim group As Variant
+    Dim generatedNames() As String
+    Dim exportFormat As String
+    Dim index As Long
+
+    On Error GoTo PreviewUnavailable
+    txbPreview.Value = vbNullString
+    exportFormat = NormalizeExportFormatText(CStr(cmbExFormat.Value))
+    If Len(exportFormat) = 0 Then Exit Sub
+
+    If Not pQueueDraft Is Nothing Then
+        Set doc = pQueueDraft.ResolveSourceDocument()
+    ElseIf Application.Documents.Count > 0 Then
+        Set doc = ActiveDocument
+    End If
+    If doc Is Nothing Then Exit Sub
+
+    Set tokenPlan = New ExportTokenPlan
+    ' Page kosong mengikuti page aktif dokumen sumber, sama seperti alur export.
+    tokenPlan.Prepare doc, CStr(txbPage.Value), CStr(txbName.Value)
+    Set groups = tokenPlan.Groups
+    Set pageParser = New ExportPageParser
+    If exportFormat <> ".pdf" Then
+        For Each group In groups
+            If pageParser.PageGroupCount(group) > 1 Then Exit Sub
+        Next group
+    End If
+
+    ReDim generatedNames(0 To groups.Count - 1)
+    ' Nama pertama dapat memperoleh (1) bila ada output lain bernama sama.
+    For index = 1 To groups.Count
+        generatedNames(index - 1) = tokenPlan.NameAt(index)
+    Next index
+    Set nameParser = New ExportTemplateParser
+    txbPreview.Value = nameParser.BuildUniqueExportName(generatedNames, groups.Count, 1) & exportFormat
+    Exit Sub
+
+PreviewUnavailable:
+    txbPreview.Value = vbNullString
 End Sub
 
 Private Sub UserForm_Initialize()
@@ -234,11 +294,16 @@ Private Sub UserForm_Initialize()
 
     On Error GoTo InitializeFailed
     isLoadingSettings = True
+    operation = "Mengunci txbPreview"
+    txbPreview.Enabled = True
+    txbPreview.Locked = True
     operation = "PopulateExportFormats / cmbExFormat"
     PopulateExportFormats
     operation = "LoadSavedSettings"
     LoadSavedSettings
     isLoadingSettings = False
+    operation = "Memperbarui preview nama file"
+    UpdateFilePreview
     Exit Sub
 
 InitializeFailed:
