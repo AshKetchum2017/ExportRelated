@@ -73,6 +73,7 @@ Editor `ExportRelatedSettings` digunakan untuk menentukan kebutuhan setiap job.
 | `cmbExFormat` | Memilih `.pdf`, `.dxf`, `.png`, atau `.jpg`. |
 | `txbPage` | Menentukan page dan pembagian file hasil. |
 | `txbName` | Menentukan nama atau template nama file. |
+| `txbPreview` | Menampilkan perkiraan nama file hasil pertama beserta ekstensi; tidak dapat diedit. |
 | `cmdFormatSettings` | Membuka pengaturan format yang dipilih. |
 | `cmdSave` | Menyimpan draft job ke antrean pada mode queue. |
 | `cmdCancel` | Membatalkan perubahan editor. |
@@ -80,6 +81,14 @@ Editor `ExportRelatedSettings` digunakan untuk menentukan kebutuhan setiap job.
 Pengaturan PNG, JPEG, dan DXF disalin sebagai **snapshot** per item. Perubahan default untuk pekerjaan berikutnya tidak otomatis mengganti snapshot job yang sudah ada.
 
 Untuk PDF, item menyimpan nama preset dan pilihan compatibility. Isi preset tetap dimuat dari CorelDRAW saat export, sehingga preset tersebut harus tersedia dan perubahan isinya dapat memengaruhi hasil.
+
+### File Name Preview
+
+`txbPreview` diperbarui saat `txbName`, `txbPage`, atau `cmbExFormat` berubah, dan ketika editor dibuka atau draft queue dimuat. Preview memakai dokumen sumber item saat mengedit job queue; pada alur single export, preview memakai dokumen aktif. Jika `txbPage` kosong, perhitungan mengikuti page aktif dokumen sumber seperti saat export.
+
+Yang ditampilkan adalah **nama file pertama** dari rencana output beserta ekstensi, bukan seluruh daftar hasil. Jika beberapa output dalam item itu mempunyai nama dasar yang sama, preview pertama dapat menampilkan suffix seperti `(1)`. `txbPreview` dikunci agar tidak dapat diketik. Selama input nama/page/format belum valid, dokumen tidak tersedia, atau grup multi-page dipilih untuk format selain PDF, isinya kosong sementara.
+
+Preview membantu memeriksa pola nama saat mengisi editor; validasi folder tujuan, layer, benturan path antarjob, dan keberhasilan export tetap dilakukan pada proses sebenarnya.
 
 ### Parent Directory
 
@@ -437,7 +446,7 @@ Suffix duplikat dibentuk berdasarkan nama hasil dalam item, bukan dengan mencari
 3. Aktifkan dokumen sumber, lalu gunakan **Add** melalui `cmdAddSetting`.
 4. Tentukan directory manual atau aktifkan `chkParentDirectory`.
 5. Pilih format melalui `cmbExFormat`.
-6. Isi `txbPage` dan `txbName` sesuai pembagian file yang dibutuhkan.
+6. Isi `txbPage` dan `txbName` sesuai pembagian file yang dibutuhkan; periksa nama hasil pertama di `txbPreview`.
 7. Buka `cmdFormatSettings`, periksa opsi format, lalu simpan.
 8. Simpan job melalui `cmdSave`.
 9. Pilih kombinasi layer job tersebut pada Main UserForm.
@@ -486,6 +495,8 @@ Contoh ilustratif untuk dokumen sumber yang **sudah tersimpan** dan mempunyai mi
 ```
 
 Di Behavior, `Default` hanya tersedia untuk `txbDirectory` (`LastDirectory`), `cmbExFormat` (`LastExportFormat`), dan `chkParentDirectory` (`UseParentDirectory`) melalui registry `RinCorelMacros/ExportRelatedMacro`. `Nothing`, `Empty`, dan `Null` melewati assignment setelah target tetap divalidasi. Preflight semantik memastikan form, tipe nilai, action, urutan editor, dan indeks item sesuai script; kondisi dokumen, folder, dan ekspor aktual masih diperiksa lagi saat eksekusi. Penutupan menu utama menyelesaikan langkah MacroRunner.
+
+Jika instruksi Behavior gagal saat form utama masih terlihat, sesi otomatis dihentikan dan editor/draft yang terbuka dipertahankan agar dapat diperiksa. Selesaikan `JPEGSettings` lewat Save/Close manual dan `ExportRelatedSettings` lewat Save/Cancel manual; setelah editor selesai, menu dapat dipakai lagi. Jika form utama sudah ditutup atau belum sempat tampil, sesi membersihkan editor yang tidak lagi mempunyai menu. Perbaikan manual setelah error tidak melanjutkan antrean MacroRunner yang gagal.
 
 Bridge target ada di `src/modules/MRTargetBridge.bas` dan kontrak/sesinya di `ERBehaviorContract.cls` serta `ERBehaviorSession.cls`. Integrasi ini juga memakai `MRBehaviorParser`, `MRBehaviorBlock`, dan `MRBehaviorInstruction` dari [MacroRunner](https://github.com/AshKetchum2017/MacroRunner) sebagai class module pada project GMS target; ketiga source bersama itu tidak disertakan di repo ExportRelated ini. Samakan versi parser dan protokol bridge di kedua project.
 
