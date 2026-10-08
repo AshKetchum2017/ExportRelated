@@ -90,12 +90,16 @@ End Property
 Private Sub SaveQueueItem()
     Dim errorNumber As Long
     Dim errorDescription As String
+    Dim isDayDirectory As Boolean
 
     On Error GoTo SaveFailed
     pQueueDraft.Settings.LoadFromForm Me
     pQueueDraft.Settings.FormatText = NormalizeExportFormatText(cmbExFormat.Value)
-    pQueueDraft.ValidateForQueue
+    pQueueDraft.Settings.Directory = ResolveSaveDirectory(pQueueDraft.Settings, pQueueDraft.SourceDocument, isDayDirectory)
+    pQueueDraft.ValidateForQueue Not isDayDirectory
+    If isDayDirectory Then EnsureDayDirectory pQueueDraft.Settings.Directory
     txbDirectory.Text = pQueueDraft.Settings.Directory
+    If isDayDirectory Then pManualDirectory = txbDirectory.Text
     SaveCurrentDirectorySetting
     SaveParentDirectorySetting
     Set pQueueResult = pQueueDraft.Clone()
@@ -112,6 +116,48 @@ SaveFailed:
         Exit Sub
     End If
     MsgBox "Gagal menyimpan item export (" & CStr(errorNumber) & "): " & errorDescription, vbExclamation, "Export Queue"
+End Sub
+
+Private Function ResolveSaveDirectory(ByVal settings As ExportSettings, ByVal doc As Document, _
+                                      ByRef isDayDirectory As Boolean) As String
+    Dim fso As Object
+    Dim lastDirectory As String
+    Dim parentDirectory As String
+    Dim dayName As String
+
+    isDayDirectory = False
+    If settings.UseParentDirectory Or settings.Directory <> "/*dd" Then
+        ResolveSaveDirectory = settings.ResolveDirectory(doc)
+        Exit Function
+    End If
+
+    Set fso = CreateObject("Scripting.FileSystemObject")
+    lastDirectory = Trim$(GetSetting(REG_APP_NAME, REG_SECTION_NAME, REG_LAST_DIRECTORY_KEY, ""))
+    If Len(lastDirectory) = 0 Then
+        Err.Raise 5, "ExportRelatedSettings", "Token /*dd memerlukan LastDirectory yang berakhir dengan folder hari, misalnya 07."
+    End If
+    Do While Right$(lastDirectory, 1) = "\"
+        lastDirectory = Left$(lastDirectory, Len(lastDirectory) - 1)
+    Loop
+    dayName = fso.GetFileName(lastDirectory)
+    If Len(dayName) <> 2 Or Not dayName Like "##" Then
+        Err.Raise 5, "ExportRelatedSettings", "Folder terakhir LastDirectory harus berupa hari dua digit (01-31): " & lastDirectory
+    End If
+    If CLng(dayName) < 1 Or CLng(dayName) > 31 Then
+        Err.Raise 5, "ExportRelatedSettings", "Folder hari LastDirectory harus berada pada 01-31: " & lastDirectory
+    End If
+    parentDirectory = fso.GetParentFolderName(lastDirectory)
+    If Not fso.FolderExists(parentDirectory) Then
+        Err.Raise 76, "ExportRelatedSettings", "Folder induk LastDirectory tidak ditemukan: " & parentDirectory
+    End If
+    ResolveSaveDirectory = fso.BuildPath(parentDirectory, Format$(Date, "dd"))
+    isDayDirectory = True
+End Function
+
+Private Sub EnsureDayDirectory(ByVal directory As String)
+    Dim fso As Object
+    Set fso = CreateObject("Scripting.FileSystemObject")
+    If Not fso.FolderExists(directory) Then fso.CreateFolder directory
 End Sub
 
 Private Sub chkParentDirectory_Click()
@@ -214,7 +260,7 @@ SettingsFailed:
 End Sub
 
 Private Sub txbDirectory_Change()
-
+'
 End Sub
 
 Private Sub txbDirectory_AfterUpdate()
@@ -371,6 +417,7 @@ Private Sub SaveCurrentDirectorySetting()
     If isLoadingSettings Then Exit Sub
     If CBool(chkParentDirectory.Value) Then Exit Sub
     currentDirectory = Trim$(txbDirectory.Text)
+    If currentDirectory = "/*dd" Then Exit Sub
     If Len(currentDirectory) > 0 Then
         Set fso = CreateObject("Scripting.FileSystemObject")
         If fso.FolderExists(currentDirectory) Then
@@ -657,6 +704,7 @@ Private Sub cmdSave_Click()
     Dim generatedNames() As String
     Dim exportError As Long
     Dim exportDescription As String
+    Dim isDayDirectory As Boolean
 
     If Not pQueueDraft Is Nothing Then
         SaveQueueItem
@@ -676,16 +724,18 @@ Private Sub cmdSave_Click()
     Set exportSettings = New exportSettings
     exportSettings.LoadFromForm Me
 
-    exportSettings.Directory = exportSettings.ResolveDirectory(doc)
+    exportSettings.Directory = ResolveSaveDirectory(exportSettings, doc, isDayDirectory)
     exportDir = exportSettings.Directory
     If Len(exportDir) = 0 Then
         MsgBox "Pilih folder tujuan export terlebih dahulu.", vbExclamation, "Export Related"
         Exit Sub
     End If
 
-    If Not exportSettings.IsValidDirectory Then
-        MsgBox "Folder tujuan export tidak valid atau tidak ditemukan.", vbExclamation, "Export Related"
-        Exit Sub
+    If Not isDayDirectory Then
+        If Not exportSettings.IsValidDirectory Then
+            MsgBox "Folder tujuan export tidak valid atau tidak ditemukan.", vbExclamation, "Export Related"
+            Exit Sub
+        End If
     End If
 
     If Right$(exportDir, 1) <> "\" Then
@@ -724,7 +774,9 @@ Private Sub cmdSave_Click()
         firstPageNumber = pageParser.FirstPageInGroup(pageGroup)
         generatedNames(exportIndex - 1) = tokenPlan.NameAt(exportIndex)
     Next exportIndex
+    If isDayDirectory Then EnsureDayDirectory exportSettings.Directory
     txbDirectory.Text = exportSettings.Directory
+    If isDayDirectory Then pManualDirectory = txbDirectory.Text
     SaveCurrentDirectorySetting
     SaveParentDirectorySetting
     For exportIndex = 1 To outputCount

@@ -311,7 +311,7 @@ Public Function ReadDXFSnapshot() As DXFExportSettings
 End Function
 
 ' Hitung file memakai parser existing, bukan menghitung page atau memecah summary.
-Public Sub ValidateForQueue()
+Public Sub ValidateForQueue(Optional ByVal requireExistingDirectory As Boolean = True)
     Dim pageParser As ExportPageParser
     Dim tokenPlan As ExportTokenPlan
     Dim groups As Collection
@@ -324,7 +324,10 @@ Public Sub ValidateForQueue()
     If SourceDocument Is Nothing Then Err.Raise 5, "ExportSettingItem", "Tidak ada dokumen sumber."
     pSettings.Directory = pSettings.ResolveDirectory(SourceDocument)
     Set fso = CreateObject("Scripting.FileSystemObject")
-    If Not fso.FolderExists(pSettings.Directory) Then Err.Raise 5, "ExportSettingItem", "Pilih folder export yang valid."
+    ' Save /*dd memvalidasi item sebelum membuat folder hari; runner tetap memakai default True.
+    If requireExistingDirectory Then
+        If Not fso.FolderExists(pSettings.Directory) Then Err.Raise 5, "ExportSettingItem", "Pilih folder export yang valid."
+    End If
     EnsureFormatSettings
     ' Input kosong menunjuk page saat item disimpan, bukan page aktif saat export nanti.
     If Len(pSettings.PageText) = 0 Then pSettings.PageText = CStr(SourceDocument.ActivePage.Index)

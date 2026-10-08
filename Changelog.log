@@ -98,3 +98,9 @@
 2026-09-28
 + Menambahkan `txbPreview` di ExportRelatedSettings untuk menampilkan nama file export pertama beserta ekstensi saat nama, page, atau format berubah.
 + Preview tetap tampil saat `txbPage` kosong, tidak dapat diedit, dan kosong sementara ketika token belum valid.
+
+------------------------------------------------------------------------------------------------------------------------------------------------------
+2026-10-08
+[Token Directory tanggal hari ini]
++ Menambahkan token `/*dd` untuk Directory, termasuk pengisian melalui MacroBehavior. Saat Save, folder hari terakhir diganti dengan tanggal Windows dua digit; tahun dan bulan tetap mengikuti path terakhir.
++ Folder hari dibuat bila belum ada, lalu path hasil disimpan sebagai directory terakhir.
