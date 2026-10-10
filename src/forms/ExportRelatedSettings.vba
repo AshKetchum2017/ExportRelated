@@ -18,6 +18,11 @@ Private pQueueResult As ExportSettingItem
 Private pManualDirectory As String
 Private pMRBehaviorObserver As Object
 Private pMRAction As Boolean
+Private pHintReady As Boolean
+Private pUpdatingHint As Boolean
+Private pHintActive(1 To 3) As Boolean
+Private pInputColor(1 To 3) As Long
+Private pFocusedInput As String
 
 ' Tanpa pemanggilan ini, cmdSave tetap menjalankan single export existing.
 Public Sub BeginQueueEdit(ByVal item As ExportSettingItem)
@@ -57,16 +62,16 @@ Public Sub BeginQueueEdit(ByVal item As ExportSettingItem)
 
     isLoadingSettings = True
     operation = "Mengisi txbDirectory.Text"
-    txbDirectory.Text = pQueueDraft.Settings.Directory
-    If Not pQueueDraft.Settings.UseParentDirectory Then pManualDirectory = txbDirectory.Text
+    ERSetInput txbDirectory, pQueueDraft.Settings.Directory
+    If Not pQueueDraft.Settings.UseParentDirectory Then pManualDirectory = ERInputText(txbDirectory)
     chkParentDirectory.Value = pQueueDraft.Settings.UseParentDirectory
     UpdateParentDirectoryControls
     operation = "Mengisi cmbExFormat.Value"
     cmbExFormat.Value = pQueueDraft.Settings.FormatText
     operation = "Mengisi txbPage.Text"
-    txbPage.Text = pQueueDraft.Settings.PageText
+    ERSetInput txbPage, pQueueDraft.Settings.PageText
     operation = "Mengisi txbName.Text"
-    txbName.Text = pQueueDraft.Settings.TemplateText
+    ERSetInput txbName, pQueueDraft.Settings.TemplateText
     isLoadingSettings = False
     operation = "EnsureFormatSettings pada draft"
     pQueueDraft.EnsureFormatSettings
@@ -98,8 +103,8 @@ Private Sub SaveQueueItem()
     pQueueDraft.Settings.Directory = ResolveSaveDirectory(pQueueDraft.Settings, pQueueDraft.SourceDocument, isDayDirectory)
     pQueueDraft.ValidateForQueue Not isDayDirectory
     If isDayDirectory Then EnsureDayDirectory pQueueDraft.Settings.Directory
-    txbDirectory.Text = pQueueDraft.Settings.Directory
-    If isDayDirectory Then pManualDirectory = txbDirectory.Text
+    ERSetInput txbDirectory, pQueueDraft.Settings.Directory
+    If isDayDirectory Then pManualDirectory = ERInputText(txbDirectory)
     SaveCurrentDirectorySetting
     SaveParentDirectorySetting
     Set pQueueResult = pQueueDraft.Clone()
@@ -162,7 +167,7 @@ End Sub
 
 Private Sub chkParentDirectory_Click()
     If isLoadingSettings Then Exit Sub
-    If CBool(chkParentDirectory.Value) Then pManualDirectory = txbDirectory.Text
+    If CBool(chkParentDirectory.Value) Then pManualDirectory = ERInputText(txbDirectory)
     UpdateParentDirectoryControls
 End Sub
 
@@ -178,9 +183,9 @@ Private Sub UpdateParentDirectoryControls()
             Set doc = ActiveDocument
         End If
         Set settings = New ExportSettings
-        txbDirectory.Text = settings.DocumentDirectory(doc)
+        ERSetInput txbDirectory, settings.DocumentDirectory(doc)
     Else
-        txbDirectory.Text = pManualDirectory
+        ERSetInput txbDirectory, pManualDirectory
     End If
 End Sub
 
@@ -259,8 +264,107 @@ SettingsFailed:
 
 End Sub
 
+' Hint hanya presentasi. Semua pembacaan settings memakai nilai asli melalui ERInputText.
+Private Function ERInputIndex(ByVal box As MSForms.TextBox) As Long
+    Select Case box.Name
+        Case "txbDirectory": ERInputIndex = 1
+        Case "txbName": ERInputIndex = 2
+        Case "txbPage": ERInputIndex = 3
+    End Select
+End Function
+
+Public Function ERInputText(ByVal box As MSForms.TextBox) As String
+    If pHintReady Then
+        If pHintActive(ERInputIndex(box)) Then Exit Function
+    End If
+    ERInputText = box.Text
+End Function
+
+Private Sub ERShowHint(ByVal box As MSForms.TextBox)
+    Dim hint As String
+    Dim index As Long
+    If Not pHintReady Then Exit Sub
+    If Not box.Enabled Then Exit Sub
+    If pFocusedInput = box.Name Then Exit Sub
+    If Len(box.Text) > 0 Then Exit Sub
+    index = ERInputIndex(box)
+    Select Case index
+        Case 1: hint = "Enter export folder path"
+        Case 2: hint = "Current document name"
+        Case 3: hint = "Current page"
+    End Select
+    pUpdatingHint = True
+    pHintActive(index) = True
+    box.ForeColor = RGB(128, 128, 128)
+    box.Text = hint
+    pUpdatingHint = False
+End Sub
+
+' Assignment dari Browse/Modify/MB tetap input nyata meskipun teksnya sama dengan hint.
+Private Sub ERSetInput(ByVal box As MSForms.TextBox, ByVal value As String)
+    Dim index As Long
+    index = ERInputIndex(box)
+    pUpdatingHint = True
+    pHintActive(index) = False
+    If pHintReady Then box.ForeColor = pInputColor(index)
+    box.Text = value
+    pUpdatingHint = False
+    ERShowHint box
+    If Not isLoadingSettings And index <> 1 Then UpdateFilePreview
+End Sub
+
+Private Sub ERInputChanged(ByVal box As MSForms.TextBox)
+    Dim index As Long
+    If pUpdatingHint Or Not pHintReady Then Exit Sub
+    index = ERInputIndex(box)
+    pHintActive(index) = False
+    box.ForeColor = pInputColor(index)
+    ERShowHint box
+End Sub
+
+Private Sub EREnterInput(ByVal box As MSForms.TextBox)
+    Dim index As Long
+    If Not pHintReady Then Exit Sub
+    pFocusedInput = box.Name
+    index = ERInputIndex(box)
+    pUpdatingHint = True
+    If pHintActive(index) Then box.Text = vbNullString
+    pHintActive(index) = False
+    box.ForeColor = pInputColor(index)
+    pUpdatingHint = False
+End Sub
+
+Private Sub ERExitInput(ByVal box As MSForms.TextBox)
+    pFocusedInput = vbNullString
+    ERShowHint box
+End Sub
+
+Private Sub txbDirectory_Enter()
+    EREnterInput txbDirectory
+End Sub
+
+Private Sub txbDirectory_Exit(ByVal Cancel As MSForms.ReturnBoolean)
+    ERExitInput txbDirectory
+End Sub
+
+Private Sub txbName_Enter()
+    EREnterInput txbName
+End Sub
+
+Private Sub txbName_Exit(ByVal Cancel As MSForms.ReturnBoolean)
+    ERExitInput txbName
+End Sub
+
+Private Sub txbPage_Enter()
+    EREnterInput txbPage
+End Sub
+
+Private Sub txbPage_Exit(ByVal Cancel As MSForms.ReturnBoolean)
+    ERExitInput txbPage
+End Sub
+
 Private Sub txbDirectory_Change()
-'
+    ERInputChanged txbDirectory
 End Sub
 
 Private Sub txbDirectory_AfterUpdate()
@@ -268,21 +372,23 @@ Private Sub txbDirectory_AfterUpdate()
 End Sub
 
 Private Sub txbName_Change()
+    If pUpdatingHint Then Exit Sub
+    ERInputChanged txbName
     If isLoadingSettings Then Exit Sub
     UpdateFilePreview
 End Sub
 
 Private Sub txbPage_Change()
+    If pUpdatingHint Then Exit Sub
+    ERInputChanged txbPage
     If isLoadingSettings Then Exit Sub
     UpdateFilePreview
 End Sub
 
 Private Sub cmbExFormat_Change()
-
     If isLoadingSettings Then Exit Sub
     SaveCurrentExportFormatSetting
     UpdateFilePreview
-
 End Sub
 
 Private Sub UpdateFilePreview()
@@ -310,7 +416,7 @@ Private Sub UpdateFilePreview()
 
     Set tokenPlan = New ExportTokenPlan
     ' Page kosong mengikuti page aktif dokumen sumber, sama seperti alur export.
-    tokenPlan.Prepare doc, CStr(txbPage.Value), CStr(txbName.Value)
+    tokenPlan.Prepare doc, ERInputText(txbPage), ERInputText(txbName)
     Set groups = tokenPlan.Groups
     Set pageParser = New ExportPageParser
     If exportFormat <> ".pdf" Then
@@ -340,6 +446,11 @@ Private Sub UserForm_Initialize()
 
     On Error GoTo InitializeFailed
     isLoadingSettings = True
+    operation = "Menyiapkan hint TextBox"
+    pInputColor(1) = txbDirectory.ForeColor
+    pInputColor(2) = txbName.ForeColor
+    pInputColor(3) = txbPage.ForeColor
+    pHintReady = True
     operation = "Mengunci txbPreview"
     txbPreview.Enabled = True
     txbPreview.Locked = True
@@ -347,6 +458,9 @@ Private Sub UserForm_Initialize()
     PopulateExportFormats
     operation = "LoadSavedSettings"
     LoadSavedSettings
+    ERShowHint txbDirectory
+    ERShowHint txbName
+    ERShowHint txbPage
     isLoadingSettings = False
     operation = "Memperbarui preview nama file"
     UpdateFilePreview
@@ -382,7 +496,7 @@ Private Sub LoadSavedSettings()
         operation = "Memeriksa directory tersimpan dengan Dir$"
         If Len(Dir$(savedDirectory, vbDirectory)) > 0 Then
             operation = "Mengisi txbDirectory.Text dari LastDirectory"
-            txbDirectory.Text = savedDirectory
+            ERSetInput txbDirectory, savedDirectory
         End If
     End If
 
@@ -396,7 +510,7 @@ Private Sub LoadSavedSettings()
     operation = "GetSetting UseParentDirectory"
     chkParentDirectory.Value = (StrComp(GetSetting(REG_APP_NAME, REG_SECTION_NAME, _
         REG_PARENT_DIRECTORY_KEY, "False"), "True", vbTextCompare) = 0)
-    pManualDirectory = txbDirectory.Text
+    pManualDirectory = ERInputText(txbDirectory)
     UpdateParentDirectoryControls
     Exit Sub
 
@@ -416,7 +530,7 @@ Private Sub SaveCurrentDirectorySetting()
     ' LastDirectory adalah default untuk Add berikutnya, bukan directory semua item.
     If isLoadingSettings Then Exit Sub
     If CBool(chkParentDirectory.Value) Then Exit Sub
-    currentDirectory = Trim$(txbDirectory.Text)
+    currentDirectory = Trim$(ERInputText(txbDirectory))
     If currentDirectory = "/*dd" Then Exit Sub
     If Len(currentDirectory) > 0 Then
         Set fso = CreateObject("Scripting.FileSystemObject")
@@ -455,10 +569,10 @@ Private Sub cmdBrowse_Click()
     Dim selectedPath As String
 
     If CBool(chkParentDirectory.Value) Then Exit Sub
-    selectedPath = SelectExportFolder(Trim$(txbDirectory.Text))
+    selectedPath = SelectExportFolder(Trim$(ERInputText(txbDirectory)))
 
     If Len(selectedPath) > 0 And Len(Dir$(selectedPath, vbDirectory)) > 0 Then
-        txbDirectory.value = selectedPath
+        ERSetInput txbDirectory, selectedPath
         SaveCurrentDirectorySetting
     End If
 
@@ -591,15 +705,15 @@ End Sub
 
 Public Sub MRBehaviorValue(ByVal target As String, ByVal value As Variant)
     Select Case LCase$(target)
-        Case "txbname": txbName.Value = CStr(value)
-        Case "txbpage": txbPage.Value = CStr(value)
+        Case "txbname": ERSetInput txbName, CStr(value)
+        Case "txbpage": ERSetInput txbPage, CStr(value)
         Case "cmbexformat": cmbExFormat.Value = LCase$(CStr(value))
         Case "chkparentdirectory"
             chkParentDirectory.Value = CBool(value)
             UpdateParentDirectoryControls
         Case "txbdirectory"
             If CBool(chkParentDirectory.Value) Then Err.Raise 5, , "Nonaktifkan chkParentDirectory sebelum mengisi txbDirectory."
-            txbDirectory.Value = CStr(value)
+            ERSetInput txbDirectory, CStr(value)
             pManualDirectory = CStr(value)
         Case Else: Err.Raise 5, , "Target settings tidak terdaftar: " & target
     End Select
@@ -775,8 +889,8 @@ Private Sub cmdSave_Click()
         generatedNames(exportIndex - 1) = tokenPlan.NameAt(exportIndex)
     Next exportIndex
     If isDayDirectory Then EnsureDayDirectory exportSettings.Directory
-    txbDirectory.Text = exportSettings.Directory
-    If isDayDirectory Then pManualDirectory = txbDirectory.Text
+    ERSetInput txbDirectory, exportSettings.Directory
+    If isDayDirectory Then pManualDirectory = ERInputText(txbDirectory)
     SaveCurrentDirectorySetting
     SaveParentDirectorySetting
     For exportIndex = 1 To outputCount

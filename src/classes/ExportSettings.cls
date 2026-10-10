@@ -70,16 +70,16 @@ Public Sub LoadFromForm(ByVal frm As Object)
     Dim errorDescription As String
 
     On Error GoTo ReadFailed
-    operation = "frm.txbDirectory.Text"
-    Me.Directory = frm.txbDirectory.Text
+    operation = "frm.ERInputText(txbDirectory)"
+    Me.Directory = frm.ERInputText(frm.txbDirectory)
     operation = "frm.chkParentDirectory.Value"
     Me.UseParentDirectory = CBool(frm.chkParentDirectory.Value)
     operation = "frm.cmbExFormat.Value"
     Me.FormatText = frm.cmbExFormat.Value
-    operation = "frm.txbName.Text"
-    Me.TemplateText = frm.txbName.Text
-    operation = "frm.txbPage.Text"
-    Me.PageText = frm.txbPage.Text
+    operation = "frm.ERInputText(txbName)"
+    Me.TemplateText = frm.ERInputText(frm.txbName)
+    operation = "frm.ERInputText(txbPage)"
+    Me.PageText = frm.ERInputText(frm.txbPage)
     Exit Sub
 
 ReadFailed:

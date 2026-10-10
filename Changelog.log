@@ -104,3 +104,9 @@
 [Token Directory tanggal hari ini]
 + Menambahkan token `/*dd` untuk Directory, termasuk pengisian melalui MacroBehavior. Saat Save, folder hari terakhir diganti dengan tanggal Windows dua digit; tahun dan bulan tetap mengikuti path terakhir.
 + Folder hari dibuat bila belum ada, lalu path hasil disimpan sebagai directory terakhir.
+
+------------------------------------------------------------------------------------------------------------------------------------------------------
+2026-10-10
+[ExportRelatedSettings - HintText]
++ Menambahkan hint pada Directory (`Enter export folder path`), Name (`Current document name`), dan Page (`Current page`). Hint berwarna abu-abu, hilang saat fokus, dan muncul kembali bila input tetap kosong.
+~ Hint diperlakukan sebagai input kosong oleh preview, Save, dan registry; pengisian melalui Browse, Modify, dan MacroBehavior tetap memakai nilai sebenarnya.
