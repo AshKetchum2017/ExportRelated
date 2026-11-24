@@ -110,3 +110,7 @@
 [ExportRelatedSettings - HintText]
 + Menambahkan hint pada Directory (`Enter export folder path`), Name (`Current document name`), dan Page (`Current page`). Hint berwarna abu-abu, hilang saat fokus, dan muncul kembali bila input tetap kosong.
 ~ Hint diperlakukan sebagai input kosong oleh preview, Save, dan registry; pengisian melalui Browse, Modify, dan MacroBehavior tetap memakai nilai sebenarnya.
+
+------------------------------------------------------------------------------------------------------------------------------------------------------
+2026-11-24
+~ Memperbaiki total halaman pada peringatan saat deret halaman dinamis melebihi halaman dokumen.

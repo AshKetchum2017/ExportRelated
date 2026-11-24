@@ -243,7 +243,7 @@ Gunakan dokumen dengan nama dan jumlah halaman pada kolom fixture, tujuan ekspor
 | W01 | `Order.cdr`, 3 halaman | `{1/*n-5}` | `{A}1/*n` | `A1.pdf` ← [1], `A2.pdf` ← [2], `A3.pdf` ← [3]. Peringatan menyebut **3 file, 3 halaman**. |
 | W02 | `Order.cdr`, 3 halaman | `(1/*n-5)` | `{A}1/*n` | `A1.pdf` ← [1,2,3]. Peringatan menyebut **1 file, 3 halaman**. |
 
-Pada W01 dan W02, rencana output sesuai ekspektasi. Harness adaptasi parser menemukan bahwa teks peringatan menyebut **6 halaman** pada kedua kasus. `Prepare` saat ini menjumlahkan halaman dua kali saat terjadi kekurangan halaman. Expected warning di tabel tetap memakai jumlah halaman yang sebenarnya. [`ExportTokenPlan.Prepare`](../src/classes/ExportTokenPlan.cls).
+Pada W01 dan W02, cocokkan kedua angka dalam peringatan dengan jumlah file dan total halaman dari seluruh output. [`ExportTokenPlan.Prepare`](../src/classes/ExportTokenPlan.cls).
 
 ### Penolakan yang diharapkan
 

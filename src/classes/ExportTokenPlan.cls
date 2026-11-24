@@ -153,16 +153,6 @@ Public Sub Prepare(ByVal doc As Document, ByVal pageText As String, ByVal nameTe
             CStr(pGroups.Count) & " file (" & CStr(pageTotal) & " page dalam seluruh output)."
     End If
 
-    If shortage Then
-        For index = 1 To pGroups.Count
-            group = pGroups(index)
-            pageTotal = pageTotal + pages.PageGroupCount(group)
-        Next index
-
-        pWarning = "Page tidak cukup untuk batas token dinamis. Output hanya menghasilkan " & _
-            CStr(pGroups.Count) & " file (" & CStr(pageTotal) & " page dalam seluruh output)."
-    End If
-
     Exit Sub
 
 NameResolutionFailed:
