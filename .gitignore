@@ -8,6 +8,8 @@
 # Include Changelog to be tracked by git
 !Changelog.log
 !README.md
+!/docs/algorithm-references.md
+!/docs/ExportNameTokens.md
 
 # Ignore specific files in the project directory
 ClassHeader.cls

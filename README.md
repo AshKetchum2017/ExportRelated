@@ -35,7 +35,7 @@ Saat item baru ditambahkan, dokumen aktif menjadi sumber item tersebut. Untuk me
 Contoh ilustratif:
 
 | Job | Dokumen Sumber | Format | Directory Tujuan |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | 1 | `Label.cdr` | `.png` | `D:\Output\Preview` |
 | 2 | `Cutting.cdr` | `.pdf` | `D:\Output\Cutting` |
 | 3 | `Label.cdr` | `.jpg` | `D:\Output\Approval` |
@@ -47,7 +47,7 @@ Ketiga pekerjaan dapat dijalankan melalui satu antrean. Dokumen sumber harus tet
 ## Queue Controls
 
 | Kontrol | Perilaku |
-|---|---|
+| --- | --- |
 | `cmdAddSetting` | Membuka editor untuk menambahkan job dari dokumen aktif. |
 | `cmdModify` | Mengubah job terpilih dengan tetap menggunakan dokumen sumber item tersebut. |
 | `cmdRemoveSetting` | Menghapus job terpilih dari antrean. |
@@ -66,7 +66,7 @@ Antrean disimpan dalam memori selama instance Main UserForm masih tersedia. Memb
 Editor `ExportRelatedSettings` digunakan untuk menentukan kebutuhan setiap job.
 
 | Kontrol | Fungsi |
-|---|---|
+| --- | --- |
 | `txbDirectory` | Directory tujuan export. |
 | `cmdBrowse` | Memilih folder tujuan. |
 | `chkParentDirectory` | Menggunakan folder dokumen sumber. |
@@ -107,7 +107,7 @@ Dokumen harus sudah tersimpan untuk menggunakan Parent Directory. Jika belum, si
 ### Single and Grouped Pages
 
 | Input `txbPage` | Hasil |
-|---|---|
+| --- | --- |
 | Kosong | Menggunakan page aktif saat item queue disimpan. |
 | `1` | Satu file dari page 1. |
 | `1,3` | Satu PDF berisi page 1 dan 3. |
@@ -127,7 +127,7 @@ Nomor page harus tersedia pada dokumen sumber. Rentang ditulis dari kecil ke bes
 `/*n` pada `txbPage` meneruskan deret page dari angka awal. Akhiran `-n` membatasi **jumlah page fisik**, bukan nomor page akhir atau jumlah file.
 
 | Input `txbPage` | Hasil pada dokumen yang cukup panjang |
-|---|---|
+| --- | --- |
 | `{1/*n}` | Satu file per page mulai page 1 sampai akhir dokumen. |
 | `{3/*n-3}` | Tiga file: page 3, 4, dan 5. |
 | `(1/*n-5)` | Satu PDF yang menggabungkan page 1 sampai 5. |
@@ -160,7 +160,7 @@ Jika input kosong, macro menggunakan nama dokumen tanpa ekstensi. Ekstensi hasil
 Dengan nama dokumen `Desain Lama.cdr`:
 
 | Input `txbName` | Nama Dasar Hasil |
-|---|---|
+| --- | --- |
 | Kosong | `Desain Lama` |
 | `Hasil Final` | `Hasil Final` |
 | `Lama/*Baru` | `Desain Baru` |
@@ -178,7 +178,7 @@ akan membentuk `Order 1`, `Order 2`, dan `Order 3`.
 Template langsung juga dapat memakai bagian tetap dalam `{}` dan nilai yang berubah di luarnya:
 
 | Template untuk Tiga Output | Nama Dasar Hasil |
-|---|---|
+| --- | --- |
 | `{LABEL}_A,B,C` | `LABEL_A`, `LABEL_B`, `LABEL_C` |
 | `{LABEL}_1,2,3` | `LABEL_1`, `LABEL_2`, `LABEL_3` |
 | `{LABEL}_A1,A2,A3` | `LABEL_A1`, `LABEL_A2`, `LABEL_A3` |
@@ -194,7 +194,7 @@ Koma di luar `{}` menjadi delimiter nilai, termasuk ketika berada di antara angk
 Spasi setelah koma dipertahankan sebagai bagian nilai pada template langsung, command replacement, dan daftar affix. Spasi pemisah di sekitar `;` dan `|` diabaikan.
 
 | Template untuk Dua Output | Nama Dasar Hasil |
-|---|---|
+| --- | --- |
 | `{A}1,2` | `A1`, `A2` |
 | `{A}1, 2` | `A1`, `A 2` |
 | `{ORDER, A}_1,2` | `ORDER, A_1`, `ORDER, A_2` |
@@ -211,7 +211,7 @@ Marker `__` digunakan untuk menambahkan teks pada nama dasar.
 Dengan nama dasar `Desain`:
 
 | Input | Hasil |
-|---|---|
+| --- | --- |
 | `FINAL__` | `FINALDesain` |
 | `__FINAL` | `DesainFINAL` |
 | `FINAL___` | `FINAL_Desain` |
@@ -244,7 +244,7 @@ Pada replacement dan affix, `;` dapat memilih nilai berdasarkan segmen sinkronis
 Dengan nama dokumen `Order X.cdr`:
 
 | Pengaturan | Input |
-|---|---|
+| --- | --- |
 | `txbPage` | `{1,2};{3,4}` |
 | `txbName` | `(/*X):A;B` |
 
@@ -261,7 +261,7 @@ Daftar nilai nama divalidasi terhadap jumlah output atau jumlah segmen yang rele
 Token dinamis di `txbName` membuat deret nilai sesuai **jumlah file output**. Akhiran `-n` membatasi jumlah file dari blok tersebut, bukan nilai terakhir atau jumlah page di dalam satu PDF.
 
 | Pola | Deret nilai |
-|---|---|
+| --- | --- |
 | `1/*n` | `1, 2, 3, ...` |
 | `008/*n` | `008, 009, 010, ...` |
 | `Y/*a` | `Y, Z, AA, AB, ...` |
@@ -369,7 +369,7 @@ Untuk mode Paletted, runner mendukung palette `optimized`, jumlah warna 2 sampai
 Pengaturan tambahan mencakup:
 
 | Kontrol | Fungsi |
-|---|---|
+| --- | --- |
 | `cmbSubFormat` | Memilih `Standard (4:2:2)` atau `Optional (4:4:4)`. |
 | `cmbQuality` | Menentukan quality dari 0 sampai 100%. |
 | `cmbBlur` | Menentukan blur dari 0 sampai 100%. |
@@ -393,7 +393,7 @@ Pilihan penggunaan color proof disimpan per item; konfigurasi proof aktual dibac
 `DXFSettings` menyediakan pengaturan versi AutoCAD, unit, format bitmap, text, dan unmapped fills.
 
 | Kontrol | Perilaku |
-|---|---|
+| --- | --- |
 | `cmbAutoCADVersion` | Memilih versi format AutoCAD/DXF. |
 | `cmbAutoCADUnits` | Menentukan unit hasil. |
 | `cmbAutoCADBitmapAs` | Memilih tipe bitmap untuk filter DXF. |
@@ -430,7 +430,7 @@ Registry digunakan sebagai default ketika diperlukan. Antrean job sendiri tidak 
 Penanganan nama perlu dibedakan berdasarkan lokasi benturannya:
 
 | Kondisi | Perilaku |
-|---|---|
+| --- | --- |
 | Nama dasar berulang dalam satu item | Macro memberi suffix seperti `Desain (1)` dan `Desain (2)`. |
 | Dua hasil queue mempunyai path tujuan yang sama | Validasi menghentikan antrean sebelum export dimulai. |
 | File dengan path tujuan yang sama sudah ada di disk | File tersebut dapat ditimpa saat hasil disalin ke tujuan. |
@@ -462,7 +462,7 @@ Main UserForm dibuka secara `vbModeless`, sehingga user dapat berpindah dokumen 
 ExportRelated dapat menjadi target `MacroBehavior` pada MacroRunner. Script menggunakan blok `{ExportRelated:...}`; satu blok dipakai untuk setiap kemunculan `ExportRelated` dalam antrean MacroRunner. **Save** di MacroRunner memeriksa grammar dan urutan blok, lalu **Process** memanggil `MRTargetBridge.ValidateBehavior` pada target untuk pemeriksaan semantik seluruh antrean sebelum eksekusi. Saat dijalankan, `MRTargetBridge.RunBehavior` membuka sesi editor/menu dan meneruskan instruksi.
 
 | Form | Target yang didukung | Action yang didukung |
-|---|---|---|
+| --- | --- | --- |
 | `ExportRelatedMenu` | `lbxSettingLists.Index` (mulai dari 1), `chkLayer1`, `chkLayer2`, `chkLayer3` | `@cmdAddSetting`, `@cmdExport`, `@cmdClose` |
 | `ExportRelatedSettings` | `txbName`, `txbPage`, `txbDirectory`, `cmbExFormat`, `chkParentDirectory` | `@cmdFormatSettings`, `@cmdSave`, `@cmdCancel` |
 | `JPEGSettings` | `cmbColorMode` (`Grayscale`, `RGB`, `CMYK`) | `@cmdSave`, `@cmdClose` |
@@ -521,7 +521,7 @@ File sementara yang belum dapat dihapus dicoba kembali dan dilaporkan sebagai pe
 ## Project Structure
 
 | File atau Kelompok Source | Tanggung Jawab |
-|---|---|
+| --- | --- |
 | `ExportRelatedMenu.vba` | Main UserForm, antrean, checkbox layer, dan pemanggilan export. |
 | `ExportRelatedSettings.vba` | Editor job serta alur single export. |
 | `ExportSettings.cls` | Directory, format, page, template nama, dan Parent Directory. |
@@ -578,6 +578,13 @@ ExportRelated saat ini mencakup:
 - validasi queue, pemulihan state dokumen, dan cleanup file sementara.
 
 Pengembangan DXF di luar checkpoint R2007, penerapan CurvesAs/Tolerance, dan pengelolaan preset PDF lanjutan masih memerlukan pekerjaan berikutnya.
+
+---
+
+## Referensi dokumentasi
+
+- [Token nama dan halaman ExportRelated](docs/ExportNameTokens.md) memuat sintaks, contoh, dan kasus regresi.
+- [Referensi Algoritma ExportRelated](docs/algorithm-references.md) menjelaskan perencanaan output, antrean, dan penerapan API per format.
 
 ---
 
