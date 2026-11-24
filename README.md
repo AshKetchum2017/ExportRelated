@@ -88,6 +88,12 @@ Untuk PDF, item menyimpan nama preset dan pilihan compatibility. Isi preset teta
 
 Yang ditampilkan adalah **nama file pertama** dari rencana output beserta ekstensi, bukan seluruh daftar hasil. Jika beberapa output dalam item itu mempunyai nama dasar yang sama, preview pertama dapat menampilkan suffix seperti `(1)`. `txbPreview` dikunci agar tidak dapat diketik. Selama input nama/page/format belum valid, dokumen tidak tersedia, atau grup multi-page dipilih untuk format selain PDF, isinya kosong sementara.
 
+Klik kiri pada satu segmen nama di preview untuk menambahkan target dan marker `/*` ke akhir `txbName`. Tahan Shift untuk menambahkan command `(/*target):`. Kursor berpindah ke akhir kolom Name agar nilai pengganti bisa langsung diketik.
+
+Setiap tanda `-` memisahkan segmen, termasuk pada `masing-masing`. Tarik seleksi melewati kedua segmen untuk memakai `masing-masing` sebagai satu target. Replacement mengikuti aturan pencocokan pada nama, jadi target `masing` berlaku untuk semua kecocokannya. Ekstensi dan suffix duplikat yang dibuat otomatis berada di luar area pemilihan.
+
+Untuk menggabungkan operasi, ketik `|` secara manual sebelum memilih target berikutnya. Selama `|` berada di akhir input, preview menampilkan hasil blok lengkap sebelumnya agar target berikutnya tetap dapat dipilih.
+
 Preview membantu memeriksa pola nama saat mengisi editor; validasi folder tujuan, layer, benturan path antarjob, dan keberhasilan export tetap dilakukan pada proses sebenarnya.
 
 ### Parent Directory

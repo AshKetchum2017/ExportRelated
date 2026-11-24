@@ -114,3 +114,6 @@
 ------------------------------------------------------------------------------------------------------------------------------------------------------
 2026-11-24
 ~ Memperbaiki total halaman pada peringatan saat deret halaman dinamis melebihi halaman dokumen.
+
+[Target replacement dari preview]
++ Klik atau tarik seleksi pada preview nama untuk menambahkan target replacement ke Name. Tahan Shift untuk memakai command replacement dan ketik | secara manual untuk menggabungkan operasi.

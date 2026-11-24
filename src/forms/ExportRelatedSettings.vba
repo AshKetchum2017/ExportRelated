@@ -11,6 +11,8 @@ Private Const BIF_RETURNONLYFSDIRS As Long = &H1
 Private Const BIF_USENEWUI As Long = &H50
 Private Const FILE_DIALOG_SAVE_AS As Long = 1
 Private Const SELECT_FOLDER_DUMMY_FILE As String = "Select this folder"
+Private Const PREVIEW_LEFT_BUTTON As Integer = 1
+Private Const PREVIEW_SHIFT_MASK As Integer = 1
 
 Private isLoadingSettings As Boolean
 Private pQueueDraft As ExportSettingItem
@@ -23,6 +25,13 @@ Private pUpdatingHint As Boolean
 Private pHintActive(1 To 3) As Boolean
 Private pInputColor(1 To 3) As Long
 Private pFocusedInput As String
+Private pPreviewBaseName As String
+Private pPreviewCaret As Long
+Private pPreviewMouseArmed As Boolean
+Private pPreviewShiftDown As Boolean
+Private pPreviewDragStart As Long
+Private pPreviewDownX As Single
+Private pPreviewDownY As Single
 
 ' Tanpa pemanggilan ini, cmdSave tetap menjalankan single export existing.
 Public Sub BeginQueueEdit(ByVal item As ExportSettingItem)
@@ -391,6 +400,116 @@ Private Sub cmbExFormat_Change()
     UpdateFilePreview
 End Sub
 
+Private Sub txbPreview_KeyUp(ByVal KeyCode As MSForms.ReturnInteger, ByVal Shift As Integer)
+    pPreviewCaret = PreviewSelectionEnd(txbPreview.SelStart, txbPreview.SelLength)
+End Sub
+
+Private Sub txbPreview_MouseDown(ByVal Button As Integer, ByVal Shift As Integer, ByVal X As Single, ByVal Y As Single)
+    pPreviewMouseArmed = (Button = PREVIEW_LEFT_BUTTON And Len(pPreviewBaseName) > 0)
+    If Not pPreviewMouseArmed Then Exit Sub
+    pPreviewDownX = X
+    pPreviewDownY = Y
+    pPreviewShiftDown = ((Shift And PREVIEW_SHIFT_MASK) <> 0)
+    pPreviewDragStart = -1
+    If pPreviewShiftDown Then CapturePreviewDragStart
+End Sub
+
+Private Sub txbPreview_MouseMove(ByVal Button As Integer, ByVal Shift As Integer, ByVal X As Single, ByVal Y As Single)
+    If Not pPreviewMouseArmed Or Not pPreviewShiftDown Or pPreviewDragStart >= 0 Then Exit Sub
+    If (Button And PREVIEW_LEFT_BUTTON) <> 0 Then CapturePreviewDragStart
+End Sub
+
+Private Sub CapturePreviewDragStart()
+    Dim selectionEnd As Long
+
+    ' Shift memperpanjang seleksi dari caret lama. Simpan ujung yang dipindah mouse.
+    selectionEnd = PreviewSelectionEnd(txbPreview.SelStart, txbPreview.SelLength)
+    If selectionEnd <> pPreviewCaret Then pPreviewDragStart = selectionEnd
+End Sub
+
+Private Function PreviewSelectionEnd(ByVal selectionStart As Long, ByVal selectionLength As Long) As Long
+    PreviewSelectionEnd = selectionStart
+    If selectionStart >= pPreviewCaret Then PreviewSelectionEnd = selectionStart + selectionLength
+End Function
+
+Private Sub txbPreview_MouseUp(ByVal Button As Integer, ByVal Shift As Integer, ByVal X As Single, ByVal Y As Single)
+    Dim selectionStart As Long
+    Dim selectionLength As Long
+    Dim selectionEnd As Long
+    Dim target As String
+    Dim nameText As String
+    Dim replacer As String
+
+    If Button <> PREVIEW_LEFT_BUTTON Or Not pPreviewMouseArmed Then Exit Sub
+    pPreviewMouseArmed = False
+    selectionStart = txbPreview.SelStart
+    selectionLength = txbPreview.SelLength
+    selectionEnd = PreviewSelectionEnd(selectionStart, selectionLength)
+
+    If pPreviewShiftDown Then
+        If Abs(X - pPreviewDownX) <= 2 And Abs(Y - pPreviewDownY) <= 2 Then
+            selectionStart = selectionEnd
+            selectionLength = 0
+        ElseIf selectionStart = pPreviewCaret Or selectionStart + selectionLength = pPreviewCaret Then
+            If pPreviewDragStart < 0 Then Exit Sub
+            selectionStart = pPreviewDragStart
+            If selectionEnd < selectionStart Then selectionStart = selectionEnd
+            selectionLength = Abs(selectionEnd - pPreviewDragStart)
+        End If
+    End If
+    pPreviewCaret = selectionEnd
+
+    target = PreviewReplacementTarget(pPreviewBaseName, selectionStart, selectionLength)
+    If Len(target) = 0 Then Exit Sub
+    ' Kurung kurawal dan pipa menjadi bagian sintaks parser bila disalin ke target.
+    If InStr(target, "{") > 0 Or InStr(target, "}") > 0 Or InStr(target, "|") > 0 Then Exit Sub
+
+    If pPreviewShiftDown Or (Shift And PREVIEW_SHIFT_MASK) <> 0 Then
+        replacer = "(/*" & target & "): "
+    Else
+        replacer = target & " /* "
+    End If
+
+    nameText = ERInputText(txbName)
+    If Len(nameText) > 0 And Right$(nameText, 1) <> " " Then nameText = nameText & " "
+    ERSetInput txbName, nameText & replacer
+    txbName.SetFocus
+    txbName.SelStart = Len(txbName.Text)
+End Sub
+
+Private Function PreviewReplacementTarget(ByVal previewName As String, ByVal selectionStart As Long, _
+                                          ByVal selectionLength As Long) As String
+    Dim firstChar As Long
+    Dim lastChar As Long
+    Dim leftDash As Long
+    Dim rightDash As Long
+
+    If Len(previewName) = 0 Or selectionStart >= Len(previewName) Then Exit Function
+    firstChar = selectionStart + 1
+    lastChar = firstChar
+    If selectionLength = 0 Then
+        If Mid$(previewName, firstChar, 1) = "-" Then Exit Function
+    Else
+        lastChar = selectionStart + selectionLength
+        If lastChar > Len(previewName) Then lastChar = Len(previewName)
+        ' Pemisah di tepi drag tidak membuka blok lain.
+        Do While firstChar <= lastChar
+            If InStr(" -", Mid$(previewName, firstChar, 1)) = 0 Then Exit Do
+            firstChar = firstChar + 1
+        Loop
+        Do While lastChar >= firstChar
+            If InStr(" -", Mid$(previewName, lastChar, 1)) = 0 Then Exit Do
+            lastChar = lastChar - 1
+        Loop
+        If firstChar > lastChar Then Exit Function
+    End If
+
+    If firstChar > 1 Then leftDash = InStrRev(previewName, "-", firstChar - 1)
+    rightDash = InStr(lastChar + 1, previewName, "-")
+    If rightDash = 0 Then rightDash = Len(previewName) + 1
+    PreviewReplacementTarget = Trim$(Mid$(previewName, leftDash + 1, rightDash - leftDash - 1))
+End Function
+
 Private Sub UpdateFilePreview()
     Dim doc As Document
     Dim tokenPlan As ExportTokenPlan
@@ -400,9 +519,14 @@ Private Sub UpdateFilePreview()
     Dim group As Variant
     Dim generatedNames() As String
     Dim exportFormat As String
+    Dim templateText As String
+    Dim templateParts() As String
     Dim index As Long
 
     On Error GoTo PreviewUnavailable
+    pPreviewMouseArmed = False
+    pPreviewBaseName = vbNullString
+    pPreviewCaret = 0
     txbPreview.Value = vbNullString
     exportFormat = NormalizeExportFormatText(CStr(cmbExFormat.Value))
     If Len(exportFormat) = 0 Then Exit Sub
@@ -414,9 +538,19 @@ Private Sub UpdateFilePreview()
     End If
     If doc Is Nothing Then Exit Sub
 
+    Set nameParser = New ExportTemplateParser
+    templateText = ERInputText(txbName)
+    If Right$(RTrim$(templateText), 1) = "|" Then
+        templateParts = nameParser.SplitSyncNameValues(templateText, "|")
+        If UBound(templateParts) > 0 And Len(templateParts(UBound(templateParts))) = 0 Then
+            ' Preview masih memakai blok yang sudah lengkap ketika user mengetik pemisah.
+            templateText = Left$(RTrim$(templateText), Len(RTrim$(templateText)) - 1)
+            If Len(Trim$(templateText)) = 0 Then Exit Sub
+        End If
+    End If
     Set tokenPlan = New ExportTokenPlan
     ' Page kosong mengikuti page aktif dokumen sumber, sama seperti alur export.
-    tokenPlan.Prepare doc, ERInputText(txbPage), ERInputText(txbName)
+    tokenPlan.Prepare doc, ERInputText(txbPage), templateText
     Set groups = tokenPlan.Groups
     Set pageParser = New ExportPageParser
     If exportFormat <> ".pdf" Then
@@ -430,11 +564,13 @@ Private Sub UpdateFilePreview()
     For index = 1 To groups.Count
         generatedNames(index - 1) = tokenPlan.NameAt(index)
     Next index
-    Set nameParser = New ExportTemplateParser
     txbPreview.Value = nameParser.BuildUniqueExportName(generatedNames, groups.Count, 1) & exportFormat
+    pPreviewBaseName = generatedNames(0)
+    txbPreview.SelStart = 0
     Exit Sub
 
 PreviewUnavailable:
+    pPreviewBaseName = vbNullString
     txbPreview.Value = vbNullString
 End Sub
 
